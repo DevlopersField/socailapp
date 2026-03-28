@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readFile } from 'fs/promises';
-import path from 'path';
-import type { ScheduleData } from '@/lib/types';
+import { getPosts } from '@/lib/db';
 import { PLATFORMS } from '@/lib/platforms';
-
-const DATA_PATH = path.join(process.cwd(), 'src/data/schedule.json');
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,31 +11,29 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'postIds must be a non-empty array' }, { status: 400 });
     }
 
-    const raw = await readFile(DATA_PATH, 'utf-8');
-    const data: ScheduleData = JSON.parse(raw);
-    const posts = data.posts.filter(p => postIds.includes(p.id));
+    const allPosts = await getPosts();
+    const posts = allPosts.filter(p => postIds.includes(p.id));
 
     const packages = posts.flatMap(post => {
       const targetPlatforms = platforms
         ? post.platforms.filter((p: string) => platforms.includes(p))
         : post.platforms;
 
-      return targetPlatforms.map(platform => {
-        const date = new Date(post.scheduledAt).toISOString().slice(0, 10);
+      return targetPlatforms.map((platform: string) => {
+        const date = new Date(post.scheduled_at).toISOString().slice(0, 10);
         const slug = post.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 30);
         const folder = `${date}_${platform}_${slug}`;
-        const content = post.content[platform];
+        const content = post.content?.[platform];
 
         const files: Record<string, string> = {};
-
         if (!include || include.captions) {
-          files['caption.txt'] = content?.caption ?? `[Caption for ${PLATFORMS[platform].name}]`;
+          files['caption.txt'] = content?.caption ?? `[Caption for ${PLATFORMS[platform as keyof typeof PLATFORMS]?.name ?? platform}]`;
         }
         if (!include || include.hashtags) {
           files['hashtags.txt'] = content?.hashtags?.join(' ') ?? '';
         }
         if (!include || include.notes) {
-          files['posting-notes.txt'] = `Platform: ${PLATFORMS[platform].name}\nScheduled: ${post.scheduledAt}\nContent Type: ${post.contentType}\nStatus: ${post.status}`;
+          files['posting-notes.txt'] = `Platform: ${PLATFORMS[platform as keyof typeof PLATFORMS]?.name ?? platform}\nScheduled: ${post.scheduled_at}\nContent Type: ${post.content_type}\nStatus: ${post.status}`;
         }
 
         return { folder, platform, postId: post.id, title: post.title, files };

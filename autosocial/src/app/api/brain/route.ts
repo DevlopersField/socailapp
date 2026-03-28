@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { analyzeImageAndGenerate } from '@/lib/ai-provider';
 import { resizeForAllPlatforms, getImageInfo } from '@/lib/image-resizer';
+import type { ResizeMode } from '@/lib/image-resizer';
+import type { Platform } from '@/lib/types';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 
@@ -9,6 +11,11 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const file = formData.get('image') as File | null;
     const context = formData.get('context') as string | null;
+    const resizeMode = (formData.get('resizeMode') as ResizeMode) || 'contain';
+    const bgColor = (formData.get('bgColor') as string) || '#000000';
+    const quality = parseInt(formData.get('quality') as string) || 90;
+    const outputFormat = (formData.get('format') as 'jpeg' | 'png' | 'webp') || 'jpeg';
+    const platformsRaw = formData.get('platforms') as string | null;
 
     if (!file) {
       return NextResponse.json({ error: 'No image provided' }, { status: 400 });
@@ -27,10 +34,20 @@ export async function POST(request: NextRequest) {
     const imageBuffer = Buffer.from(arrayBuffer);
     const imageBase64 = imageBuffer.toString('base64');
 
+    // Parse platform selection
+    const platforms = platformsRaw
+      ? (platformsRaw.split(',').filter(Boolean) as Platform[])
+      : undefined;
+
     // Run AI analysis and image resize in parallel
     const [aiResult, resizedImages, imageInfo] = await Promise.all([
       analyzeImageAndGenerate(imageBase64, file.type, context || undefined),
-      resizeForAllPlatforms(imageBuffer),
+      resizeForAllPlatforms(imageBuffer, {
+        mode: resizeMode,
+        background: bgColor,
+        quality,
+        format: outputFormat,
+      }, platforms),
       getImageInfo(imageBuffer),
     ]);
 
@@ -50,6 +67,7 @@ export async function POST(request: NextRequest) {
       savedImages.push({
         platform: img.platform,
         spec: img.spec,
+        orientation: img.orientation,
         width: img.width,
         height: img.height,
         sizeKB: img.sizeKB,
@@ -58,7 +76,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Save original too
+    // Save original
     const originalExt = file.type.split('/')[1] || 'jpg';
     const originalPath = path.join(outputDir, `original.${originalExt}`);
     await writeFile(originalPath, imageBuffer);
@@ -71,7 +89,10 @@ export async function POST(request: NextRequest) {
         height: imageInfo.height,
         format: imageInfo.format,
         sizeKB: imageInfo.sizeKB,
+        orientation: imageInfo.orientation,
+        aspectRatio: imageInfo.aspectRatio,
       },
+      resizeSettings: { mode: resizeMode, bgColor, quality, format: outputFormat },
       analysis: aiResult.analysis,
       titles: aiResult.titles,
       captions: aiResult.captions,

@@ -13,10 +13,13 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard', href: '/', icon: '⊞' },
   { label: 'Brain', href: '/brain', icon: '🧠' },
+  { label: 'Trends', href: '/trends', icon: '📈' },
   { label: 'Content Creator', href: '/content', icon: '✏' },
   { label: 'Scheduler', href: '/scheduler', icon: '◷' },
   { label: 'Packages', href: '/packages', icon: '⊡' },
   { label: 'Analytics', href: '/analytics', icon: '▲' },
+  { label: 'Guides', href: '/guides', icon: '📖' },
+  { label: 'Settings', href: '/settings', icon: '⚙' },
 ];
 
 export default function Sidebar() {

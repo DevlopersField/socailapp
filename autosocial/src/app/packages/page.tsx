@@ -1,13 +1,31 @@
 'use client';
 
-import { useState } from 'react';
-import { scheduledPosts } from '@/lib/sample-data';
+import { useState, useEffect } from 'react';
 import { PLATFORMS } from '@/lib/platforms';
 import type { Platform } from '@/lib/types';
 
+interface PostItem {
+  id: string;
+  title: string;
+  platforms: string[];
+  scheduled_at: string;
+  status: string;
+  content_type: string;
+  content: Record<string, { caption: string; hashtags: string[] }>;
+}
+
 export default function PackagesPage() {
+  const [scheduledPosts, setScheduledPosts] = useState<PostItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [format, setFormat] = useState<'files' | 'zip' | 'json'>('files');
+
+  useEffect(() => {
+    fetch('/api/posts')
+      .then(r => r.json())
+      .then(data => { setScheduledPosts(data.posts || []); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
   const [includes, setIncludes] = useState({ captions: true, hashtags: true, notes: true, specs: true });
   const [platformFilter, setPlatformFilter] = useState<Set<Platform>>(new Set(['instagram', 'linkedin', 'twitter']));
   const [generated, setGenerated] = useState(false);
@@ -36,9 +54,9 @@ export default function PackagesPage() {
   const selectedPosts = scheduledPosts.filter(p => selected.has(p.id));
   const packageFiles = selectedPosts.flatMap(post =>
     post.platforms
-      .filter(p => platformFilter.has(p))
+      .filter(p => platformFilter.has(p as Platform))
       .map(platform => {
-        const date = new Date(post.scheduledAt).toISOString().slice(0, 10);
+        const date = new Date(post.scheduled_at).toISOString().slice(0, 10);
         const slug = post.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 30);
         const folder = `${date}_${platform}_${slug}`;
         const files: string[] = [];
@@ -71,11 +89,11 @@ export default function PackagesPage() {
               <input type="checkbox" checked={selected.has(post.id)} onChange={() => togglePost(post.id)} className="w-4 h-4 accent-[#6366f1] shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className="text-[#f1f5f9] text-sm font-medium truncate">{post.title}</p>
-                <p className="text-[#94a3b8] text-xs">{new Date(post.scheduledAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
+                <p className="text-[#94a3b8] text-xs">{new Date(post.scheduled_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
               </div>
               <div className="flex gap-1 shrink-0">
                 {post.platforms.map(p => (
-                  <span key={p} className="text-xs px-1.5 py-0.5 rounded" style={{ backgroundColor: PLATFORMS[p].color + '20', color: PLATFORMS[p].color }}>{PLATFORMS[p].name}</span>
+                  <span key={p} className="text-xs px-1.5 py-0.5 rounded" style={{ backgroundColor: PLATFORMS[p as Platform]?.color + '20', color: PLATFORMS[p as Platform]?.color }}>{PLATFORMS[p as Platform]?.name}</span>
                 ))}
               </div>
             </label>

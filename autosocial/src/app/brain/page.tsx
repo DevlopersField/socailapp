@@ -4,17 +4,24 @@ import { useState, useCallback, useRef } from 'react';
 import { PLATFORMS } from '@/lib/platforms';
 import type { Platform } from '@/lib/types';
 
+type ResizeMode = 'contain' | 'cover' | 'fill';
+type OutputFormat = 'jpeg' | 'png' | 'webp';
+type Orientation = 'landscape' | 'portrait' | 'square';
+
 interface BrainResult {
   success: boolean;
   outputId: string;
-  original: { width: number; height: number; format: string; sizeKB: number };
+  original: { width: number; height: number; format: string; sizeKB: number; orientation: string; aspectRatio: string };
+  resizeSettings: { mode: string; bgColor: string; quality: number; format: string };
   analysis: { subject: string; industry: string; mood: string; contentType: string; detectedText: string };
   titles: { hook: string; value: string; curiosity: string };
   captions: Record<string, string>;
   hashtags: Record<string, string[]>;
   strategy: { bestTime: string; bestDay: string; contentTip: string };
-  images: { platform: Platform; spec: string; width: number; height: number; sizeKB: number; filename: string; url: string }[];
+  images: { platform: Platform; spec: string; orientation: Orientation; width: number; height: number; sizeKB: number; filename: string; url: string }[];
 }
+
+const ORIENTATION_ICONS: Record<string, string> = { landscape: '🖼', portrait: '📱', square: '⬜' };
 
 export default function BrainPage() {
   const [dragOver, setDragOver] = useState(false);
@@ -26,6 +33,10 @@ export default function BrainPage() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Platform>('instagram');
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [resizeMode, setResizeMode] = useState<ResizeMode>('contain');
+  const [bgColor, setBgColor] = useState('#000000');
+  const [outputFormat, setOutputFormat] = useState<OutputFormat>('jpeg');
+  const [quality, setQuality] = useState(90);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = useCallback((f: File) => {
@@ -51,6 +62,10 @@ export default function BrainPage() {
     const formData = new FormData();
     formData.append('image', file);
     if (context.trim()) formData.append('context', context.trim());
+    formData.append('resizeMode', resizeMode);
+    formData.append('bgColor', bgColor);
+    formData.append('quality', quality.toString());
+    formData.append('format', outputFormat);
 
     try {
       const res = await fetch('/api/brain', { method: 'POST', body: formData });
@@ -131,6 +146,92 @@ export default function BrainPage() {
                 placeholder="e.g. 'This is a case study for our fintech client' or 'Promoting our new branding package'..."
                 className="w-full bg-[#12131e] border border-[#2a2b3e] text-[#f1f5f9] rounded-lg p-3 text-sm min-h-[100px] placeholder:text-[#64748b] focus:outline-none focus:ring-2 focus:ring-[#6366f1]/50 resize-none"
               />
+            </div>
+
+            {/* Image Settings */}
+            <div className="bg-[#1a1b2e] rounded-xl border border-[#2a2b3e] p-5 space-y-4">
+              <h3 className="text-sm font-semibold text-[#f1f5f9]">Image Settings</h3>
+
+              {/* Resize Mode */}
+              <div>
+                <label className="text-xs text-[#94a3b8] block mb-2">Resize Mode</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {([
+                    ['contain', 'Contain', 'No crop — adds padding'],
+                    ['cover', 'Cover', 'Fills area — may crop'],
+                    ['fill', 'Stretch', 'Exact size — distorts'],
+                  ] as const).map(([value, label, desc]) => (
+                    <button
+                      key={value}
+                      onClick={() => setResizeMode(value)}
+                      className={`p-2 rounded-lg border text-left transition-colors ${resizeMode === value ? 'bg-[#6366f1]/10 border-[#6366f1]/50' : 'bg-[#12131e] border-[#2a2b3e] hover:border-[#6366f1]/20'}`}
+                    >
+                      <span className={`text-xs font-medium block ${resizeMode === value ? 'text-[#6366f1]' : 'text-[#f1f5f9]'}`}>{label}</span>
+                      <span className="text-[10px] text-[#64748b] block mt-0.5">{desc}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Background Color — only for contain mode */}
+              {resizeMode === 'contain' && (
+                <div>
+                  <label className="text-xs text-[#94a3b8] block mb-2">Background Fill</label>
+                  <div className="flex items-center gap-2">
+                    {[
+                      ['#000000', 'Black'],
+                      ['#FFFFFF', 'White'],
+                      ['#0a0b14', 'Dark'],
+                      ['#12131e', 'Surface'],
+                    ].map(([color, label]) => (
+                      <button
+                        key={color}
+                        onClick={() => setBgColor(color)}
+                        title={label}
+                        className={`w-7 h-7 rounded-md border-2 transition-colors ${bgColor === color ? 'border-[#6366f1]' : 'border-[#2a2b3e]'}`}
+                        style={{ backgroundColor: color }}
+                      />
+                    ))}
+                    <input
+                      type="color"
+                      value={bgColor}
+                      onChange={e => setBgColor(e.target.value)}
+                      className="w-7 h-7 rounded-md cursor-pointer border border-[#2a2b3e] bg-transparent"
+                      title="Custom color"
+                    />
+                    <span className="text-[10px] text-[#64748b] ml-1">{bgColor}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Format + Quality row */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs text-[#94a3b8] block mb-2">Format</label>
+                  <div className="flex gap-1.5">
+                    {(['jpeg', 'png', 'webp'] as const).map(fmt => (
+                      <button
+                        key={fmt}
+                        onClick={() => setOutputFormat(fmt)}
+                        className={`flex-1 py-1.5 text-xs rounded-md border transition-colors uppercase ${outputFormat === fmt ? 'bg-[#6366f1] border-[#6366f1] text-white' : 'bg-[#12131e] border-[#2a2b3e] text-[#94a3b8]'}`}
+                      >
+                        {fmt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs text-[#94a3b8] block mb-2">Quality: {quality}%</label>
+                  <input
+                    type="range"
+                    min={50}
+                    max={100}
+                    value={quality}
+                    onChange={e => setQuality(parseInt(e.target.value))}
+                    className="w-full accent-[#6366f1]"
+                  />
+                </div>
+              </div>
             </div>
 
             <div className="bg-[#1a1b2e] rounded-xl border border-[#2a2b3e] p-5">
@@ -287,24 +388,47 @@ export default function BrainPage() {
             )}
           </div>
 
-          {/* Resized Images */}
+          {/* Resized Images — grouped by orientation */}
           <div className="bg-[#1a1b2e] rounded-xl border border-[#2a2b3e] p-5">
-            <h3 className="text-lg font-semibold text-[#f1f5f9] mb-4">📐 Resized Images</h3>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-              {result.images.map((img, i) => (
-                <div key={i} className="p-3 bg-[#12131e] rounded-lg border border-[#2a2b3e]">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span>{PLATFORMS[img.platform].icon}</span>
-                    <span className="text-[#f1f5f9] text-xs font-medium">{PLATFORMS[img.platform].name}</span>
-                  </div>
-                  <div className="bg-[#0a0b14] rounded-md mb-2 flex items-center justify-center" style={{ aspectRatio: `${img.width}/${img.height}`, maxHeight: '120px' }}>
-                    <img src={img.url} alt={img.filename} className="w-full h-full object-cover rounded-md" />
-                  </div>
-                  <p className="text-[#94a3b8] text-xs">{img.width}×{img.height} • {img.sizeKB} KB</p>
-                  <p className="text-[#64748b] text-xs truncate">{img.spec.replace(/_/g, ' ')}</p>
-                </div>
-              ))}
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-[#f1f5f9]">📐 Resized Images</h3>
+              <div className="flex items-center gap-2 text-xs text-[#94a3b8]">
+                <span className="px-2 py-0.5 bg-[#12131e] rounded">Mode: {result.resizeSettings?.mode || resizeMode}</span>
+                <span className="px-2 py-0.5 bg-[#12131e] rounded">{result.original.orientation} source</span>
+                <span className="px-2 py-0.5 bg-[#12131e] rounded">{result.original.aspectRatio}</span>
+              </div>
             </div>
+            {(['landscape', 'portrait', 'square'] as const).map(orientation => {
+              const imgs = result.images.filter(img => img.orientation === orientation);
+              if (imgs.length === 0) return null;
+              return (
+                <div key={orientation} className="mb-4 last:mb-0">
+                  <h4 className="text-xs font-medium text-[#94a3b8] mb-2 flex items-center gap-1.5">
+                    <span>{ORIENTATION_ICONS[orientation]}</span>
+                    <span className="capitalize">{orientation}</span>
+                    <span className="text-[#64748b]">({imgs.length})</span>
+                  </h4>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                    {imgs.map((img, i) => (
+                      <div key={i} className="p-3 bg-[#12131e] rounded-lg border border-[#2a2b3e] group">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <span>{PLATFORMS[img.platform].icon}</span>
+                            <span className="text-[#f1f5f9] text-xs font-medium">{PLATFORMS[img.platform].name}</span>
+                          </div>
+                          <span className="text-[10px] text-[#64748b] px-1.5 py-0.5 bg-[#0a0b14] rounded capitalize">{img.orientation}</span>
+                        </div>
+                        <div className="bg-[#0a0b14] rounded-md mb-2 flex items-center justify-center overflow-hidden" style={{ aspectRatio: `${img.width}/${img.height}`, maxHeight: '120px' }}>
+                          <img src={img.url} alt={img.filename} className="w-full h-full object-contain rounded-md" />
+                        </div>
+                        <p className="text-[#94a3b8] text-xs">{img.width}×{img.height} • {img.sizeKB} KB</p>
+                        <p className="text-[#64748b] text-xs truncate">{img.spec.replace(/_/g, ' ')}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
           {/* Actions */}

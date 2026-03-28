@@ -12,11 +12,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **App Dir:** `autosocial/`
 - **Run:** `cd autosocial && npm run dev`
 - **Data:** JSON files in `autosocial/src/data/` (schedule.json, analytics.json)
+- **AI:** OpenRouter (Nemotron free) / OpenAI / Anthropic — switchable via .env.local
+- **Image Processing:** Sharp (contain/cover/stretch, auto-resize all platforms)
 - **Platforms:** Instagram, LinkedIn, Twitter/X, Pinterest, Dribbble, Google My Business
 
 ## Custom Agents
 
-Four specialized agents are available in `.claude/agents/`:
+Five specialized agents are available in `.claude/agents/`:
 
 | Agent | When to use |
 |-------|-------------|
@@ -24,12 +26,13 @@ Four specialized agents are available in `.claude/agents/`:
 | `backend-agent` | APIs, server logic, database, auth, server infrastructure |
 | `qa-agent` | Writing tests, bug hunting, edge case validation, code quality |
 | `dashboard-agent` | Charts, data tables, metrics displays, admin panels |
+| **`autosocial-agent`** | **AutoSocial development — knows full architecture, DB schema, APIs** |
 
 Use them via `@"agent-name"` in conversation or `/agents` to browse.
 
 ## Custom Skills
 
-17 skills are available in `.claude/skills/`:
+19 skills are available in `.claude/skills/`:
 
 ### General Skills
 
@@ -46,6 +49,7 @@ Use them via `@"agent-name"` in conversation or `/agents` to browse.
 | Progress | `/progress` | Auto-tracks tool development in PROGRESS.md |
 | Thinking | `/thinking` | Ask clarifying questions first, then deliver precise output |
 | Documentation | `/documentation` | Generate READMEs, API docs, architecture docs |
+| **Security** | **`/security`** | **OWASP audit, API hardening, secret protection, XSS/CSRF** |
 
 ### AutoSocial Skills (Social Media Manager Suite)
 

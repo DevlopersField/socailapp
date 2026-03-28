@@ -1,12 +1,48 @@
 'use client';
 
-import { useState } from 'react';
-import { analyticsEntries, analyticsData } from '@/lib/sample-data';
+import { useState, useEffect } from 'react';
 import { PLATFORMS } from '@/lib/platforms';
 import type { Platform } from '@/lib/types';
 
+interface AnalyticsEntry {
+  id: string;
+  post_id: string;
+  platform: string;
+  published_at: string;
+  metrics: { impressions: number; reach: number; likes: number; comments: number; shares: number; saves: number; clicks: number; engagement_rate: number };
+  content_type: string;
+  hashtags: string[];
+}
+
 export default function AnalyticsPage() {
   const [range, setRange] = useState<'7d' | '30d' | '90d'>('30d');
+  const [analyticsEntries, setEntries] = useState<AnalyticsEntry[]>([]);
+  const [summary, setSummary] = useState<{ totalPosts: number; avgEngagementRate: number; bestPlatform: string } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/analytics')
+      .then(r => r.json())
+      .then(data => {
+        setEntries(data.entries || []);
+        setSummary(data.summary || null);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div><h1 className="text-2xl font-bold text-[#f1f5f9]">Analytics</h1></div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="bg-[#1a1b2e] rounded-xl border border-[#2a2b3e] p-4 h-20 animate-pulse" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   const totals = analyticsEntries.reduce(
     (acc, e) => ({
@@ -24,7 +60,7 @@ export default function AnalyticsPage() {
     .map(p => {
       const entries = analyticsEntries.filter(e => e.platform === p);
       if (!entries.length) return null;
-      const avgER = entries.reduce((s, e) => s + e.metrics.engagementRate, 0) / entries.length;
+      const avgER = entries.reduce((s, e) => s + e.metrics.engagement_rate, 0) / entries.length;
       const totalImpressions = entries.reduce((s, e) => s + e.metrics.impressions, 0);
       const topHashtag = getMostFrequent(entries.flatMap(e => e.hashtags));
       return { platform: p, posts: entries.length, impressions: totalImpressions, avgER, topHashtag };
@@ -32,14 +68,14 @@ export default function AnalyticsPage() {
     .filter(Boolean) as { platform: Platform; posts: number; impressions: number; avgER: number; topHashtag: string }[];
 
   const contentTypeStats = ['case-study', 'knowledge', 'design', 'trend', 'promotion'].map(type => {
-    const entries = analyticsEntries.filter(e => e.contentType === type);
-    const avgER = entries.length ? entries.reduce((s, e) => s + e.metrics.engagementRate, 0) / entries.length : 0;
+    const entries = analyticsEntries.filter(e => e.content_type === type);
+    const avgER = entries.length ? entries.reduce((s, e) => s + e.metrics.engagement_rate, 0) / entries.length : 0;
     return { type, avgER, count: entries.length };
   }).filter(s => s.count > 0).sort((a, b) => b.avgER - a.avgER);
 
   const maxContentER = Math.max(...contentTypeStats.map(s => s.avgER));
 
-  const topPosts = [...analyticsEntries].sort((a, b) => b.metrics.engagementRate - a.metrics.engagementRate).slice(0, 3);
+  const topPosts = [...analyticsEntries].sort((a, b) => b.metrics.engagement_rate - a.metrics.engagement_rate).slice(0, 3);
 
   return (
     <div className="space-y-6">
@@ -68,7 +104,7 @@ export default function AnalyticsPage() {
         <MetricCard label="Likes" value={fmt(totals.likes)} bar={0.6} />
         <MetricCard label="Comments" value={fmt(totals.comments)} bar={0.25} />
         <MetricCard label="Shares" value={fmt(totals.shares)} bar={0.45} />
-        <MetricCard label="Avg ER" value={`${analyticsData.summary.avgEngagementRate}%`} bar={0.85} />
+        <MetricCard label="Avg ER" value={`${summary?.avgEngagementRate || 0}%`} bar={0.85} />
       </div>
 
       {/* Platform Breakdown Table */}
@@ -138,12 +174,12 @@ export default function AnalyticsPage() {
                 <span className="text-lg font-bold text-[#6366f1] w-6 text-center shrink-0">#{i + 1}</span>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <span>{PLATFORMS[entry.platform].icon}</span>
-                    <span className="text-[#f1f5f9] text-sm font-medium">{PLATFORMS[entry.platform].name}</span>
+                    <span>{PLATFORMS[entry.platform as Platform]?.icon}</span>
+                    <span className="text-[#f1f5f9] text-sm font-medium">{PLATFORMS[entry.platform as Platform]?.name}</span>
                   </div>
-                  <p className="text-[#94a3b8] text-xs mt-1 capitalize">{entry.contentType.replace('-', ' ')}</p>
+                  <p className="text-[#94a3b8] text-xs mt-1 capitalize">{entry.content_type?.replace('-', ' ')}</p>
                   <div className="flex gap-4 mt-2 text-xs">
-                    <span className="text-emerald-400">{entry.metrics.engagementRate}% ER</span>
+                    <span className="text-emerald-400">{entry.metrics.engagement_rate}% ER</span>
                     <span className="text-[#94a3b8]">{fmt(entry.metrics.impressions)} impressions</span>
                   </div>
                 </div>

@@ -1,643 +1,235 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { scheduledPosts } from '@/lib/sample-data';
+import { useState, useEffect, useCallback } from 'react';
 import { PLATFORMS } from '@/lib/platforms';
-import type { Post, Platform } from '@/lib/types';
+import type { Platform } from '@/lib/types';
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-const MONTH_NAMES = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-];
-
-function getDaysInMonth(year: number, month: number) {
-  return new Date(year, month + 1, 0).getDate();
+interface Post {
+  id: string;
+  title: string;
+  platforms: string[];
+  scheduled_at: string;
+  status: string;
+  content_type: string;
+  content: Record<string, { caption: string; hashtags: string[] }>;
 }
 
-/** Returns 0=Mon … 6=Sun (ISO weekday minus 1) */
-function getFirstDayOfMonth(year: number, month: number) {
-  const day = new Date(year, month, 1).getDay(); // 0=Sun
-  return day === 0 ? 6 : day - 1;
-}
+const CONTENT_TYPES = ['case-study', 'knowledge', 'design', 'trend', 'promotion'];
+const ALL_PLATFORMS: Platform[] = ['instagram', 'linkedin', 'twitter', 'pinterest', 'dribbble', 'gmb'];
 
-function formatTime(isoString: string) {
-  const d = new Date(isoString);
-  return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-}
+export default function SchedulerPage() {
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [view, setView] = useState<'month' | 'week'>('month');
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  const [showModal, setShowModal] = useState(false);
+  const [editingPost, setEditingPost] = useState<Post | null>(null);
+  const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
-function formatDateTime(isoString: string) {
-  const d = new Date(isoString);
-  return d.toLocaleString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true,
-  });
-}
+  const [formTitle, setFormTitle] = useState('');
+  const [formType, setFormType] = useState('design');
+  const [formPlatforms, setFormPlatforms] = useState<Set<Platform>>(new Set(['instagram', 'linkedin']));
+  const [formDate, setFormDate] = useState('');
+  const [formTime, setFormTime] = useState('11:00');
+  const [formCaption, setFormCaption] = useState('');
 
-const STATUS_STYLES: Record<string, string> = {
-  scheduled: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/30',
-  draft: 'text-amber-400 bg-amber-500/10 border-amber-500/30',
-  published: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30',
-  failed: 'text-red-400 bg-red-500/10 border-red-500/30',
-};
+  const showToast = (msg: string, type: 'success' | 'error') => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3000);
+  };
 
-// Week hours shown in week view
-const WEEK_HOURS = Array.from({ length: 14 }, (_, i) => i + 7); // 07:00 – 20:00
+  const fetchPosts = useCallback(async () => {
+    try {
+      const res = await fetch('/api/posts');
+      const data = await res.json();
+      setPosts(data.posts || []);
+    } catch {} finally { setLoading(false); }
+  }, []);
 
-// ── Post pill ────────────────────────────────────────────────────────────────
+  useEffect(() => { fetchPosts(); }, [fetchPosts]);
 
-function PostPill({
-  post,
-  onClick,
-  selected,
-}: {
-  post: Post;
-  onClick: () => void;
-  selected: boolean;
-}) {
-  const primary = post.platforms[0] as Platform;
-  const platformColor = PLATFORMS[primary]?.color ?? '#6366f1';
-  return (
-    <button
-      onClick={onClick}
-      style={{ borderLeftColor: platformColor }}
-      className={`w-full text-left px-2 py-1.5 rounded-md border-l-2 text-xs font-medium truncate transition-all ${
-        selected
-          ? 'bg-indigo-600/20 text-white ring-1 ring-indigo-500/50'
-          : 'bg-[#12131e] text-[#94a3b8] hover:bg-[#12131e]/80 hover:text-[#f1f5f9]'
-      }`}
-      title={post.title}
-    >
-      <span className="mr-1">{PLATFORMS[primary]?.icon}</span>
-      <span className="truncate">{post.title}</span>
-    </button>
+  const openNewPost = (date?: string) => {
+    setEditingPost(null);
+    setFormTitle(''); setFormType('design');
+    setFormPlatforms(new Set(['instagram', 'linkedin']));
+    setFormDate(date || new Date().toISOString().slice(0, 10));
+    setFormTime('11:00'); setFormCaption('');
+    setShowModal(true);
+  };
+
+  const openEditPost = (post: Post) => {
+    setEditingPost(post);
+    setFormTitle(post.title); setFormType(post.content_type);
+    setFormPlatforms(new Set(post.platforms as Platform[]));
+    const d = new Date(post.scheduled_at);
+    setFormDate(d.toISOString().slice(0, 10));
+    setFormTime(d.toTimeString().slice(0, 5));
+    setFormCaption(Object.values(post.content || {})[0]?.caption || '');
+    setShowModal(true);
+  };
+
+  const handleSave = async (asDraft: boolean) => {
+    if (!formTitle.trim()) { showToast('Title is required', 'error'); return; }
+    if (formPlatforms.size === 0) { showToast('Select at least one platform', 'error'); return; }
+    const scheduledAt = new Date(`${formDate}T${formTime}:00Z`).toISOString();
+    const content: Record<string, { caption: string; hashtags: string[] }> = {};
+    formPlatforms.forEach(p => { content[p] = { caption: formCaption, hashtags: [] }; });
+    try {
+      if (editingPost) {
+        await fetch(`/api/posts/${editingPost.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: formTitle, platforms: Array.from(formPlatforms), scheduledAt, status: asDraft ? 'draft' : 'scheduled', contentType: formType, content }) });
+        showToast('Post updated', 'success');
+      } else {
+        await fetch('/api/posts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: formTitle, platforms: Array.from(formPlatforms), scheduledAt, status: asDraft ? 'draft' : 'scheduled', contentType: formType, content }) });
+        showToast(asDraft ? 'Draft saved' : 'Post scheduled', 'success');
+      }
+      setShowModal(false); fetchPosts();
+    } catch { showToast('Failed to save post', 'error'); }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Delete this post?')) return;
+    try {
+      await fetch(`/api/posts/${id}`, { method: 'DELETE' });
+      showToast('Post deleted', 'success');
+      setSelectedPost(null); fetchPosts();
+    } catch { showToast('Failed to delete', 'error'); }
+  };
+
+  const handleStatusChange = async (id: string, status: string) => {
+    try {
+      await fetch(`/api/posts/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) });
+      showToast(`Status: ${status}`, 'success'); fetchPosts();
+    } catch { showToast('Failed to update', 'error'); }
+  };
+
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+  const today = new Date();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDayOfWeek = new Date(year, month, 1).getDay();
+  const monthName = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+  const calendarDays: (number | null)[] = [];
+  for (let i = 0; i < firstDayOfWeek; i++) calendarDays.push(null);
+  for (let d = 1; d <= daysInMonth; d++) calendarDays.push(d);
+
+  const getPostsForDay = (day: number) => {
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    return posts.filter(p => p.scheduled_at?.slice(0, 10) === dateStr);
+  };
+  const isToday = (day: number) => today.getFullYear() === year && today.getMonth() === month && today.getDate() === day;
+
+  if (loading) return (
+    <div className="space-y-6">
+      <div><h1 className="text-2xl font-bold text-[#f1f5f9]">Content Calendar</h1></div>
+      <div className="grid grid-cols-7 gap-2">{Array.from({ length: 35 }).map((_, i) => <div key={i} className="bg-[#1a1b2e] rounded-lg h-24 animate-pulse" />)}</div>
+    </div>
   );
-}
 
-// ── Post detail sidebar ──────────────────────────────────────────────────────
-
-function PostDetailPanel({
-  post,
-  onClose,
-}: {
-  post: Post;
-  onClose: () => void;
-}) {
   return (
-    <aside className="w-[320px] flex-shrink-0 bg-[#1a1b2e] rounded-xl border border-[#2a2b3e] p-5 flex flex-col gap-5 self-start sticky top-6">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-3">
-        <h3 className="text-sm font-semibold text-[#f1f5f9] leading-snug">{post.title}</h3>
-        <button
-          onClick={onClose}
-          className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-lg bg-[#12131e] border border-[#2a2b3e] text-[#94a3b8] hover:text-[#f1f5f9] transition-colors"
-          aria-label="Close"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
+    <div className="space-y-6">
+      {toast && <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-xl text-sm font-medium shadow-lg ${toast.type === 'success' ? 'bg-[#22c55e] text-white' : 'bg-red-500 text-white'}`}>{toast.msg}</div>}
 
-      {/* Status */}
-      <div>
-        <span
-          className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium border capitalize ${
-            STATUS_STYLES[post.status] ?? STATUS_STYLES.draft
-          }`}
-        >
-          {post.status}
-        </span>
-      </div>
-
-      {/* Scheduled time */}
-      <div className="flex flex-col gap-1">
-        <p className="text-xs font-medium text-[#94a3b8] uppercase tracking-wider">Scheduled</p>
-        <div className="flex items-center gap-2 text-sm text-[#f1f5f9]">
-          <svg className="w-4 h-4 text-indigo-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
-          {formatDateTime(post.scheduledAt)}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-[#f1f5f9]">Content Calendar</h1>
+          <p className="text-[#94a3b8] text-sm mt-1">{posts.length} posts — {posts.filter(p => p.status === 'scheduled').length} scheduled</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex gap-1 bg-[#12131e] rounded-lg p-1 border border-[#2a2b3e]">
+            {(['month', 'week'] as const).map(v => (
+              <button key={v} onClick={() => setView(v)} className={`px-3 py-1.5 text-xs font-medium rounded-md capitalize ${view === v ? 'bg-[#6366f1] text-white' : 'text-[#94a3b8]'}`}>{v}</button>
+            ))}
+          </div>
+          <button onClick={() => setCurrentDate(new Date(year, month - 1, 1))} className="p-2 text-[#94a3b8] hover:text-[#f1f5f9]">←</button>
+          <span className="text-[#f1f5f9] text-sm font-medium w-36 text-center">{monthName}</span>
+          <button onClick={() => setCurrentDate(new Date(year, month + 1, 1))} className="p-2 text-[#94a3b8] hover:text-[#f1f5f9]">→</button>
+          <button onClick={() => openNewPost()} className="px-4 py-2 bg-[#6366f1] hover:bg-[#4f46e5] text-white text-sm font-medium rounded-lg">+ New Post</button>
         </div>
       </div>
 
-      {/* Platforms */}
-      <div className="flex flex-col gap-2">
-        <p className="text-xs font-medium text-[#94a3b8] uppercase tracking-wider">Platforms</p>
-        <div className="flex flex-wrap gap-2">
-          {post.platforms.map((p) => (
-            <div
-              key={p}
-              className="flex items-center gap-1.5 bg-[#12131e] border border-[#2a2b3e] rounded-lg px-2.5 py-1.5"
-            >
-              <span className="text-sm">{PLATFORMS[p as Platform]?.icon}</span>
-              <span className="text-xs text-[#94a3b8] font-medium">
-                {PLATFORMS[p as Platform]?.name}
-              </span>
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div className="lg:col-span-3">
+          <div className="grid grid-cols-7 gap-1 mb-1">
+            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => <div key={d} className="text-center text-xs text-[#94a3b8] py-2">{d}</div>)}
+          </div>
+          <div className="grid grid-cols-7 gap-1">
+            {calendarDays.map((day, i) => {
+              if (day === null) return <div key={`e-${i}`} className="bg-[#12131e]/50 rounded-lg min-h-[100px]" />;
+              const dayPosts = getPostsForDay(day);
+              const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+              return (
+                <div key={day} onClick={() => openNewPost(dateStr)} className={`bg-[#1a1b2e] rounded-lg min-h-[100px] p-2 border cursor-pointer hover:border-[#6366f1]/30 ${isToday(day) ? 'border-[#6366f1]' : 'border-[#2a2b3e]'}`}>
+                  <span className={`text-xs font-medium ${isToday(day) ? 'text-[#6366f1]' : 'text-[#94a3b8]'}`}>{day}</span>
+                  <div className="mt-1 space-y-1">
+                    {dayPosts.slice(0, 3).map(post => (
+                      <div key={post.id} onClick={e => { e.stopPropagation(); setSelectedPost(post); }} className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] truncate cursor-pointer hover:opacity-80" style={{ backgroundColor: PLATFORMS[post.platforms[0] as Platform]?.color + '20', color: PLATFORMS[post.platforms[0] as Platform]?.color }}>
+                        <span>{PLATFORMS[post.platforms[0] as Platform]?.icon}</span>
+                        <span className="truncate">{post.title}</span>
+                      </div>
+                    ))}
+                    {dayPosts.length > 3 && <span className="text-[10px] text-[#64748b]">+{dayPosts.length - 3}</span>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div>
+          {selectedPost ? (
+            <div className="bg-[#1a1b2e] rounded-xl border border-[#2a2b3e] p-5 sticky top-6">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-[#f1f5f9]">Post Detail</h3>
+                <button onClick={() => setSelectedPost(null)} className="text-[#94a3b8] text-xs">✕</button>
+              </div>
+              <p className="text-[#f1f5f9] font-medium text-sm mb-2">{selectedPost.title}</p>
+              <div className="flex flex-wrap gap-1 mb-3">
+                {selectedPost.platforms.map(p => (
+                  <span key={p} className="text-xs px-1.5 py-0.5 rounded" style={{ backgroundColor: PLATFORMS[p as Platform]?.color + '20', color: PLATFORMS[p as Platform]?.color }}>{PLATFORMS[p as Platform]?.icon} {PLATFORMS[p as Platform]?.name}</span>
+                ))}
+              </div>
+              <div className="space-y-2 text-xs mb-4">
+                <div className="flex justify-between"><span className="text-[#94a3b8]">Date</span><span className="text-[#f1f5f9]">{new Date(selectedPost.scheduled_at).toLocaleDateString()}</span></div>
+                <div className="flex justify-between"><span className="text-[#94a3b8]">Status</span><span className={`px-2 py-0.5 rounded-full ${selectedPost.status === 'scheduled' ? 'text-blue-400 bg-blue-400/10' : selectedPost.status === 'published' ? 'text-emerald-400 bg-emerald-400/10' : 'text-amber-400 bg-amber-400/10'}`}>{selectedPost.status}</span></div>
+                <div className="flex justify-between"><span className="text-[#94a3b8]">Type</span><span className="text-[#f1f5f9] capitalize">{selectedPost.content_type?.replace('-', ' ')}</span></div>
+              </div>
+              <div className="space-y-2">
+                <button onClick={() => openEditPost(selectedPost)} className="w-full py-2 bg-[#6366f1] hover:bg-[#4f46e5] text-white text-xs rounded-lg">Edit</button>
+                <div className="grid grid-cols-2 gap-2">
+                  {selectedPost.status !== 'published' && <button onClick={() => handleStatusChange(selectedPost.id, 'published')} className="py-2 bg-[#22c55e]/10 text-[#22c55e] text-xs rounded-lg">Publish</button>}
+                  <button onClick={() => handleDelete(selectedPost.id)} className="py-2 bg-red-500/10 text-red-400 text-xs rounded-lg">Delete</button>
+                </div>
+              </div>
             </div>
-          ))}
+          ) : (
+            <div className="bg-[#1a1b2e] rounded-xl border border-[#2a2b3e] p-5 text-center">
+              <p className="text-[#94a3b8] text-sm">Click a post to see details</p>
+              <p className="text-[#64748b] text-xs mt-1">or click a day to create new</p>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Caption preview */}
-      {post.platforms[0] && post.content[post.platforms[0] as Platform] && (
-        <div className="flex flex-col gap-2">
-          <p className="text-xs font-medium text-[#94a3b8] uppercase tracking-wider">
-            Caption Preview
-          </p>
-          <div className="bg-[#12131e] rounded-lg border border-[#2a2b3e] p-3">
-            <p className="text-xs text-[#94a3b8] leading-relaxed line-clamp-4">
-              {post.content[post.platforms[0] as Platform]!.caption.slice(0, 180)}
-              {post.content[post.platforms[0] as Platform]!.caption.length > 180 ? '…' : ''}
-            </p>
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowModal(false)}>
+          <div className="bg-[#1a1b2e] rounded-xl border border-[#2a2b3e] p-6 w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <h2 className="text-lg font-bold text-[#f1f5f9] mb-4">{editingPost ? 'Edit Post' : 'New Post'}</h2>
+            <div className="space-y-4">
+              <div><label className="text-xs text-[#94a3b8] block mb-1.5">Title</label><input value={formTitle} onChange={e => setFormTitle(e.target.value)} placeholder="Post title..." className="w-full bg-[#12131e] border border-[#2a2b3e] text-[#f1f5f9] rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#6366f1]/50 placeholder:text-[#64748b]" /></div>
+              <div><label className="text-xs text-[#94a3b8] block mb-1.5">Content Type</label><div className="flex flex-wrap gap-1.5">{CONTENT_TYPES.map(t => (<button key={t} onClick={() => setFormType(t)} className={`px-3 py-1.5 text-xs rounded-lg border capitalize ${formType === t ? 'bg-[#6366f1]/10 border-[#6366f1]/50 text-[#6366f1]' : 'bg-[#12131e] border-[#2a2b3e] text-[#94a3b8]'}`}>{t.replace('-', ' ')}</button>))}</div></div>
+              <div><label className="text-xs text-[#94a3b8] block mb-1.5">Platforms</label><div className="flex flex-wrap gap-1.5">{ALL_PLATFORMS.map(p => (<button key={p} onClick={() => { const n = new Set(formPlatforms); n.has(p) ? n.delete(p) : n.add(p); setFormPlatforms(n); }} className={`px-3 py-1.5 text-xs rounded-lg border ${formPlatforms.has(p) ? 'text-white' : 'bg-[#12131e] border-[#2a2b3e] text-[#94a3b8]'}`} style={formPlatforms.has(p) ? { backgroundColor: PLATFORMS[p].color + '30', borderColor: PLATFORMS[p].color } : {}}>{PLATFORMS[p].icon} {PLATFORMS[p].name}</button>))}</div></div>
+              <div className="grid grid-cols-2 gap-3"><div><label className="text-xs text-[#94a3b8] block mb-1.5">Date</label><input type="date" value={formDate} onChange={e => setFormDate(e.target.value)} className="w-full bg-[#12131e] border border-[#2a2b3e] text-[#f1f5f9] rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#6366f1]/50" /></div><div><label className="text-xs text-[#94a3b8] block mb-1.5">Time</label><input type="time" value={formTime} onChange={e => setFormTime(e.target.value)} className="w-full bg-[#12131e] border border-[#2a2b3e] text-[#f1f5f9] rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#6366f1]/50" /></div></div>
+              <div><label className="text-xs text-[#94a3b8] block mb-1.5">Caption</label><textarea value={formCaption} onChange={e => setFormCaption(e.target.value)} placeholder="Write your caption..." rows={4} className="w-full bg-[#12131e] border border-[#2a2b3e] text-[#f1f5f9] rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#6366f1]/50 resize-none placeholder:text-[#64748b]" /></div>
+              <div className="flex gap-3 pt-2">
+                <button onClick={() => handleSave(true)} className="flex-1 py-2.5 bg-[#12131e] border border-[#2a2b3e] text-[#f1f5f9] text-sm rounded-lg hover:bg-[#2a2b3e]">Save Draft</button>
+                <button onClick={() => handleSave(false)} className="flex-1 py-2.5 bg-[#6366f1] hover:bg-[#4f46e5] text-white text-sm font-medium rounded-lg">Schedule</button>
+              </div>
+            </div>
           </div>
         </div>
       )}
-
-      {/* Content type */}
-      <div className="flex flex-col gap-1">
-        <p className="text-xs font-medium text-[#94a3b8] uppercase tracking-wider">Type</p>
-        <span className="text-xs capitalize text-[#f1f5f9] bg-[#12131e] border border-[#2a2b3e] rounded-md px-2.5 py-1 w-fit">
-          {post.contentType.replace('-', ' ')}
-        </span>
-      </div>
-
-      {/* Actions */}
-      <div className="flex flex-col gap-2 pt-1 border-t border-[#2a2b3e]">
-        <button className="w-full py-2.5 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium transition-all text-center">
-          Edit Post
-        </button>
-        <div className="flex gap-2">
-          <button className="flex-1 py-2 px-3 rounded-lg bg-[#12131e] hover:bg-[#0a0b14] border border-[#2a2b3e] hover:border-amber-500/40 text-amber-400 text-sm font-medium transition-all">
-            Reschedule
-          </button>
-          <button className="flex-1 py-2 px-3 rounded-lg bg-[#12131e] hover:bg-[#0a0b14] border border-[#2a2b3e] hover:border-red-500/40 text-red-400 text-sm font-medium transition-all">
-            Delete
-          </button>
-        </div>
-      </div>
-    </aside>
-  );
-}
-
-// ── New post modal ────────────────────────────────────────────────────────────
-
-function NewPostModal({ onClose }: { onClose: () => void }) {
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
-    >
-      <div className="bg-[#1a1b2e] border border-[#2a2b3e] rounded-2xl p-8 w-full max-w-md shadow-2xl shadow-black/40">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-semibold text-[#f1f5f9]">New Post</h2>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-lg bg-[#12131e] border border-[#2a2b3e] text-[#94a3b8] hover:text-[#f1f5f9] transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-        <div className="flex flex-col gap-5 mb-6">
-          <div>
-            <label className="block text-sm font-medium text-[#f1f5f9] mb-2">Title</label>
-            <input
-              type="text"
-              placeholder="Post title…"
-              className="w-full bg-[#12131e] border border-[#2a2b3e] text-[#f1f5f9] rounded-lg p-3 text-sm placeholder-[#94a3b8]/50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-[#f1f5f9] mb-2">Schedule Date & Time</label>
-            <input
-              type="datetime-local"
-              defaultValue="2026-03-28T10:00"
-              className="w-full bg-[#12131e] border border-[#2a2b3e] text-[#f1f5f9] rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-            />
-          </div>
-        </div>
-        <div className="flex gap-3">
-          <button
-            onClick={onClose}
-            className="flex-1 py-2.5 px-4 rounded-lg bg-[#12131e] border border-[#2a2b3e] text-[#94a3b8] hover:text-[#f1f5f9] text-sm font-medium transition-all"
-          >
-            Cancel
-          </button>
-          <a
-            href="/content"
-            className="flex-1 py-2.5 px-4 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium transition-all text-center"
-          >
-            Create in Editor
-          </a>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Main page ─────────────────────────────────────────────────────────────────
-
-export default function SchedulerPage() {
-  // Today: March 28 2026
-  const today = new Date(2026, 2, 28); // month is 0-indexed
-  const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
-  const [currentYear, setCurrentYear] = useState(today.getFullYear());
-  const [currentMonth, setCurrentMonth] = useState(today.getMonth()); // March = 2
-  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
-  const [showNewPost, setShowNewPost] = useState(false);
-
-  // Current week: Mon of week containing today
-  const [weekStart, setWeekStart] = useState<Date>(() => {
-    const d = new Date(today);
-    const day = d.getDay() === 0 ? 6 : d.getDay() - 1; // 0=Mon
-    d.setDate(d.getDate() - day);
-    return d;
-  });
-
-  // Navigation
-  function prevPeriod() {
-    if (viewMode === 'month') {
-      if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(y => y - 1); }
-      else setCurrentMonth(m => m - 1);
-    } else {
-      const d = new Date(weekStart);
-      d.setDate(d.getDate() - 7);
-      setWeekStart(d);
-    }
-  }
-
-  function nextPeriod() {
-    if (viewMode === 'month') {
-      if (currentMonth === 11) { setCurrentMonth(0); setCurrentYear(y => y + 1); }
-      else setCurrentMonth(m => m + 1);
-    } else {
-      const d = new Date(weekStart);
-      d.setDate(d.getDate() + 7);
-      setWeekStart(d);
-    }
-  }
-
-  function goToToday() {
-    setCurrentYear(today.getFullYear());
-    setCurrentMonth(today.getMonth());
-    const d = new Date(today);
-    const day = d.getDay() === 0 ? 6 : d.getDay() - 1;
-    d.setDate(d.getDate() - day);
-    setWeekStart(d);
-  }
-
-  // Map posts to date strings
-  const postsByDate = useMemo(() => {
-    const map: Record<string, Post[]> = {};
-    scheduledPosts.forEach((post) => {
-      const d = new Date(post.scheduledAt);
-      const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-      if (!map[key]) map[key] = [];
-      map[key].push(post);
-    });
-    return map;
-  }, []);
-
-  // Month grid
-  const daysInMonth = getDaysInMonth(currentYear, currentMonth);
-  const firstDayOffset = getFirstDayOfMonth(currentYear, currentMonth); // 0=Mon
-  const totalCells = Math.ceil((firstDayOffset + daysInMonth) / 7) * 7;
-
-  // Week days array
-  const weekDays = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(weekStart);
-    d.setDate(d.getDate() + i);
-    return d;
-  });
-
-  const periodLabel =
-    viewMode === 'month'
-      ? `${MONTH_NAMES[currentMonth]} ${currentYear}`
-      : (() => {
-          const end = new Date(weekStart);
-          end.setDate(end.getDate() + 6);
-          return `${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
-        })();
-
-  function isToday(year: number, month: number, day: number) {
-    return year === today.getFullYear() && month === today.getMonth() && day === today.getDate();
-  }
-
-  function getPostsForDay(year: number, month: number, day: number) {
-    return postsByDate[`${year}-${month}-${day}`] ?? [];
-  }
-
-  return (
-    <div className="min-h-screen bg-[#0a0b14] text-[#f1f5f9] font-sans">
-      {/* Header */}
-      <div className="border-b border-[#2a2b3e] bg-[#12131e]">
-        <div className="max-w-[1400px] mx-auto px-6 py-5 flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h1 className="text-xl font-semibold text-[#f1f5f9]">Content Calendar</h1>
-            <p className="text-sm text-[#94a3b8] mt-0.5">
-              {scheduledPosts.length} posts scheduled across {Object.keys(postsByDate).length} days
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {/* View toggle */}
-            <div className="flex bg-[#1a1b2e] border border-[#2a2b3e] rounded-lg p-1">
-              {(['month', 'week'] as const).map((mode) => (
-                <button
-                  key={mode}
-                  onClick={() => setViewMode(mode)}
-                  className={`px-4 py-1.5 rounded-md text-sm font-medium capitalize transition-all ${
-                    viewMode === mode
-                      ? 'bg-indigo-600 text-white shadow-sm'
-                      : 'text-[#94a3b8] hover:text-[#f1f5f9]'
-                  }`}
-                >
-                  {mode}
-                </button>
-              ))}
-            </div>
-
-            {/* Navigation */}
-            <div className="flex items-center gap-1 bg-[#1a1b2e] border border-[#2a2b3e] rounded-lg p-1">
-              <button
-                onClick={prevPeriod}
-                className="w-8 h-8 flex items-center justify-center rounded-md text-[#94a3b8] hover:text-[#f1f5f9] hover:bg-[#2a2b3e]/50 transition-all"
-                aria-label="Previous"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-              <button
-                onClick={goToToday}
-                className="px-3 py-1 text-sm font-semibold text-[#f1f5f9] min-w-[160px] text-center hover:text-indigo-400 transition-colors"
-              >
-                {periodLabel}
-              </button>
-              <button
-                onClick={nextPeriod}
-                className="w-8 h-8 flex items-center justify-center rounded-md text-[#94a3b8] hover:text-[#f1f5f9] hover:bg-[#2a2b3e]/50 transition-all"
-                aria-label="Next"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            </div>
-
-            {/* New post */}
-            <button
-              onClick={() => setShowNewPost(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold transition-all shadow-lg shadow-indigo-500/20"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              New Post
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Body */}
-      <div className="max-w-[1400px] mx-auto px-6 py-6 flex gap-6">
-        {/* Calendar area */}
-        <div className="flex-1 min-w-0">
-
-          {/* Month view */}
-          {viewMode === 'month' && (
-            <div className="bg-[#12131e] rounded-xl border border-[#2a2b3e] overflow-hidden">
-              {/* Day headers */}
-              <div className="grid grid-cols-7 border-b border-[#2a2b3e]">
-                {DAY_NAMES.map((d) => (
-                  <div
-                    key={d}
-                    className="py-3 text-center text-xs font-semibold text-[#94a3b8] uppercase tracking-wider"
-                  >
-                    {d}
-                  </div>
-                ))}
-              </div>
-
-              {/* Grid cells */}
-              <div className="grid grid-cols-7">
-                {Array.from({ length: totalCells }, (_, i) => {
-                  const dayNum = i - firstDayOffset + 1;
-                  const isCurrentMonth = dayNum >= 1 && dayNum <= daysInMonth;
-                  const today_ = isCurrentMonth && isToday(currentYear, currentMonth, dayNum);
-                  const posts = isCurrentMonth ? getPostsForDay(currentYear, currentMonth, dayNum) : [];
-                  const col = i % 7;
-                  const isLastRow = i >= totalCells - 7;
-
-                  return (
-                    <div
-                      key={i}
-                      className={`min-h-[110px] p-2 flex flex-col gap-1.5 border-b border-r border-[#2a2b3e] ${
-                        !isLastRow ? '' : 'border-b-0'
-                      } ${col === 6 ? 'border-r-0' : ''} ${
-                        !isCurrentMonth ? 'bg-[#0a0b14]/40' : 'bg-[#1a1b2e]'
-                      } ${today_ ? 'ring-inset ring-2 ring-indigo-500' : ''}`}
-                    >
-                      {/* Date number */}
-                      <span
-                        className={`text-xs font-semibold self-start w-6 h-6 flex items-center justify-center rounded-full ${
-                          today_
-                            ? 'bg-indigo-600 text-white'
-                            : isCurrentMonth
-                            ? 'text-[#f1f5f9]'
-                            : 'text-[#94a3b8]/40'
-                        }`}
-                      >
-                        {isCurrentMonth ? dayNum : ''}
-                      </span>
-
-                      {/* Post pills */}
-                      {posts.slice(0, 3).map((post) => (
-                        <PostPill
-                          key={post.id}
-                          post={post}
-                          onClick={() => setSelectedPost(selectedPost?.id === post.id ? null : post)}
-                          selected={selectedPost?.id === post.id}
-                        />
-                      ))}
-
-                      {/* Overflow indicator */}
-                      {posts.length > 3 && (
-                        <span className="text-xs text-[#94a3b8] px-1">
-                          +{posts.length - 3} more
-                        </span>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Week view */}
-          {viewMode === 'week' && (
-            <div className="bg-[#12131e] rounded-xl border border-[#2a2b3e] overflow-hidden">
-              {/* Day header row */}
-              <div className="grid grid-cols-[56px_repeat(7,1fr)] border-b border-[#2a2b3e]">
-                <div className="py-3" />
-                {weekDays.map((d, i) => {
-                  const isToday_ = isToday(d.getFullYear(), d.getMonth(), d.getDate());
-                  return (
-                    <div
-                      key={i}
-                      className={`py-3 text-center border-l border-[#2a2b3e] ${isToday_ ? 'bg-indigo-600/10' : ''}`}
-                    >
-                      <p className={`text-xs font-medium ${isToday_ ? 'text-indigo-400' : 'text-[#94a3b8]'}`}>
-                        {DAY_NAMES[i]}
-                      </p>
-                      <p
-                        className={`text-base font-bold mt-0.5 ${
-                          isToday_ ? 'text-indigo-400' : 'text-[#f1f5f9]'
-                        }`}
-                      >
-                        {d.getDate()}
-                      </p>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Time rows */}
-              <div className="overflow-y-auto max-h-[600px]">
-                {WEEK_HOURS.map((hour) => (
-                  <div
-                    key={hour}
-                    className="grid grid-cols-[56px_repeat(7,1fr)] border-b border-[#2a2b3e]/50"
-                  >
-                    {/* Time label */}
-                    <div className="py-3 px-2 text-right">
-                      <span className="text-xs text-[#94a3b8]/60 font-medium">
-                        {hour < 10 ? `0${hour}` : hour}:00
-                      </span>
-                    </div>
-
-                    {weekDays.map((d, di) => {
-                      const dayPosts = getPostsForDay(d.getFullYear(), d.getMonth(), d.getDate()).filter((p) => {
-                        const h = new Date(p.scheduledAt).getHours();
-                        return h === hour;
-                      });
-                      const isToday_ = isToday(d.getFullYear(), d.getMonth(), d.getDate());
-
-                      return (
-                        <div
-                          key={di}
-                          className={`min-h-[52px] p-1 border-l border-[#2a2b3e] flex flex-col gap-1 ${
-                            isToday_ ? 'bg-indigo-600/5' : ''
-                          }`}
-                        >
-                          {dayPosts.map((post) => {
-                            const primary = post.platforms[0] as Platform;
-                            const color = PLATFORMS[primary]?.color ?? '#6366f1';
-                            return (
-                              <button
-                                key={post.id}
-                                onClick={() => setSelectedPost(selectedPost?.id === post.id ? null : post)}
-                                style={{ borderLeftColor: color, backgroundColor: `${color}18` }}
-                                className={`w-full text-left px-2 py-2 rounded-md border-l-2 text-xs transition-all hover:brightness-110 ${
-                                  selectedPost?.id === post.id
-                                    ? 'ring-1 ring-indigo-500/50'
-                                    : ''
-                                }`}
-                              >
-                                <div className="flex items-center gap-1 mb-0.5">
-                                  <span>{PLATFORMS[primary]?.icon}</span>
-                                  <span className="font-medium text-[#94a3b8]">
-                                    {formatTime(post.scheduledAt)}
-                                  </span>
-                                </div>
-                                <p className="text-[#f1f5f9] font-medium truncate leading-snug">
-                                  {post.title}
-                                </p>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      );
-                    })}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Sidebar */}
-        {selectedPost ? (
-          <PostDetailPanel
-            post={selectedPost}
-            onClose={() => setSelectedPost(null)}
-          />
-        ) : (
-          <aside className="w-[280px] flex-shrink-0 bg-[#1a1b2e] rounded-xl border border-[#2a2b3e] p-5 self-start sticky top-6">
-            <h3 className="text-sm font-semibold text-[#f1f5f9] mb-4">Upcoming Posts</h3>
-            <div className="flex flex-col gap-2">
-              {scheduledPosts
-                .filter((p) => p.status === 'scheduled' || p.status === 'draft')
-                .slice(0, 6)
-                .map((post) => {
-                  const primary = post.platforms[0] as Platform;
-                  const color = PLATFORMS[primary]?.color ?? '#6366f1';
-                  return (
-                    <button
-                      key={post.id}
-                      onClick={() => setSelectedPost(post)}
-                      className="w-full text-left bg-[#12131e] border border-[#2a2b3e] rounded-lg p-3 hover:border-indigo-500/40 transition-colors group"
-                    >
-                      <div className="flex items-start gap-2.5">
-                        <span
-                          className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0"
-                          style={{ backgroundColor: color }}
-                        />
-                        <div className="min-w-0">
-                          <p className="text-xs font-medium text-[#f1f5f9] truncate group-hover:text-indigo-300 transition-colors">
-                            {post.title}
-                          </p>
-                          <p className="text-xs text-[#94a3b8] mt-0.5">
-                            {new Date(post.scheduledAt).toLocaleDateString('en-US', {
-                              month: 'short',
-                              day: 'numeric',
-                            })}{' '}
-                            · {formatTime(post.scheduledAt)}
-                          </p>
-                          <div className="flex items-center gap-1 mt-1.5">
-                            {post.platforms.slice(0, 3).map((p) => (
-                              <span key={p} className="text-xs">{PLATFORMS[p as Platform]?.icon}</span>
-                            ))}
-                            {post.platforms.length > 3 && (
-                              <span className="text-xs text-[#94a3b8]">+{post.platforms.length - 3}</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
-            </div>
-
-            <div className="mt-5 pt-4 border-t border-[#2a2b3e]">
-              <p className="text-xs text-[#94a3b8] text-center">
-                Click any post on the calendar to view details
-              </p>
-            </div>
-          </aside>
-        )}
-      </div>
-
-      {/* New post modal */}
-      {showNewPost && <NewPostModal onClose={() => setShowNewPost(false)} />}
     </div>
   );
 }

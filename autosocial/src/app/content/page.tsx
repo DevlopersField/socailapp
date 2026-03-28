@@ -83,6 +83,9 @@ export default function ContentCreatorPage() {
   const [activeTab, setActiveTab] = useState<Platform>('instagram');
   const [copiedTitle, setCopiedTitle] = useState<number | null>(null);
   const [copiedHashtags, setCopiedHashtags] = useState(false);
+  const [aiTitles, setAiTitles] = useState<string[]>([]);
+  const [aiCaptions, setAiCaptions] = useState<Record<string, string>>({});
+  const [aiHashtags, setAiHashtags] = useState<{ trending: string[]; niche: string[]; branded: string[] }>({ trending: [], niche: [], branded: [] });
 
   const currentType = CONTENT_TYPES.find((t) => t.id === selectedType)!;
 
@@ -98,14 +101,36 @@ export default function ContentCreatorPage() {
     );
   }
 
-  function handleGenerate() {
+  async function handleGenerate() {
     if (selectedPlatforms.length === 0) return;
     setGenerating(true);
-    setTimeout(() => {
-      setGenerating(false);
-      setGenerated(true);
-      setActiveTab(selectedPlatforms[0]);
-    }, 1400);
+    setGenerated(false);
+
+    try {
+      const res = await fetch('/api/content/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contentType: selectedType,
+          answers,
+          platforms: selectedPlatforms,
+        }),
+      });
+      const data = await res.json();
+
+      if (data.titles) setAiTitles(data.titles);
+      if (data.captions) setAiCaptions(data.captions);
+      if (data.hashtags) setAiHashtags(data.hashtags);
+    } catch {
+      // Fallback to demo content on error
+      setAiTitles([...DEMO_TITLES]);
+      setAiCaptions({ ...DEMO_CAPTIONS } as Record<string, string>);
+      setAiHashtags({ ...DEMO_HASHTAGS });
+    }
+
+    setGenerating(false);
+    setGenerated(true);
+    setActiveTab(selectedPlatforms[0]);
   }
 
   function copyToClipboard(text: string, onDone: () => void) {
@@ -113,17 +138,19 @@ export default function ContentCreatorPage() {
   }
 
   function handleCopyTitle(index: number) {
-    copyToClipboard(DEMO_TITLES[index], () => {
+    const titles = aiTitles.length > 0 ? aiTitles : DEMO_TITLES;
+    copyToClipboard(titles[index], () => {
       setCopiedTitle(index);
       setTimeout(() => setCopiedTitle(null), 2000);
     });
   }
 
   function handleCopyAllHashtags() {
+    const tags = aiHashtags.trending.length > 0 ? aiHashtags : DEMO_HASHTAGS;
     const all = [
-      ...DEMO_HASHTAGS.trending,
-      ...DEMO_HASHTAGS.niche,
-      ...DEMO_HASHTAGS.branded,
+      ...tags.trending,
+      ...tags.niche,
+      ...tags.branded,
     ].join(' ');
     copyToClipboard(all, () => {
       setCopiedHashtags(true);
@@ -308,7 +335,7 @@ export default function ContentCreatorPage() {
                   Title Options
                 </h2>
                 <div className="flex flex-col gap-2">
-                  {DEMO_TITLES.map((title, i) => (
+                  {(aiTitles.length > 0 ? aiTitles : DEMO_TITLES).map((title, i) => (
                     <div
                       key={i}
                       className="flex items-start gap-3 bg-[#12131e] rounded-lg p-3 border border-[#2a2b3e] group hover:border-indigo-500/40 transition-colors"
@@ -367,7 +394,7 @@ export default function ContentCreatorPage() {
                 {/* Caption text */}
                 <div className="bg-[#12131e] rounded-lg border border-[#2a2b3e] p-4">
                   <pre className="text-sm text-[#f1f5f9] whitespace-pre-wrap font-sans leading-relaxed">
-                    {DEMO_CAPTIONS[activeTab] ?? DEMO_CAPTIONS.instagram}
+                    {(Object.keys(aiCaptions).length > 0 ? aiCaptions[activeTab] : DEMO_CAPTIONS[activeTab]) ?? DEMO_CAPTIONS.instagram}
                   </pre>
                 </div>
               </div>
@@ -402,9 +429,9 @@ export default function ContentCreatorPage() {
                 <div className="flex flex-col gap-3">
                   {(
                     [
-                      { label: 'Trending', tags: DEMO_HASHTAGS.trending, color: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20' },
-                      { label: 'Niche', tags: DEMO_HASHTAGS.niche, color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' },
-                      { label: 'Branded', tags: DEMO_HASHTAGS.branded, color: 'text-amber-400 bg-amber-500/10 border-amber-500/20' },
+                      { label: 'Trending', tags: (aiHashtags.trending.length > 0 ? aiHashtags : DEMO_HASHTAGS).trending, color: 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20' },
+                      { label: 'Niche', tags: (aiHashtags.niche.length > 0 ? aiHashtags : DEMO_HASHTAGS).niche, color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' },
+                      { label: 'Branded', tags: (aiHashtags.branded.length > 0 ? aiHashtags : DEMO_HASHTAGS).branded, color: 'text-amber-400 bg-amber-500/10 border-amber-500/20' },
                     ] as const
                   ).map(({ label, tags, color }) => (
                     <div key={label}>

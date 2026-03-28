@@ -1,31 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { readFile, writeFile } from 'fs/promises';
-import path from 'path';
-import type { ScheduleData } from '@/lib/types';
+import { getPostsByDateRange, updatePost, createScheduledJob } from '@/lib/db';
 
-const DATA_PATH = path.join(process.cwd(), 'src/data/schedule.json');
-
-async function readData(): Promise<ScheduleData> {
-  const raw = await readFile(DATA_PATH, 'utf-8');
-  return JSON.parse(raw) as ScheduleData;
-}
-
-async function writeData(data: ScheduleData): Promise<void> {
-  await writeFile(DATA_PATH, JSON.stringify(data, null, 2), 'utf-8');
-}
-
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const data = await readData();
-    const grouped: Record<string, typeof data.posts> = {};
+    const { searchParams } = new URL(request.url);
+    const start = searchParams.get('start') ?? new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const end = searchParams.get('end') ?? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
-    for (const post of data.posts) {
-      const date = new Date(post.scheduledAt).toISOString().slice(0, 10);
-      if (!grouped[date]) grouped[date] = [];
-      grouped[date].push(post);
+    const posts = await getPostsByDateRange(start, end);
+    const calendar: Record<string, typeof posts> = {};
+    for (const post of posts) {
+      const date = new Date(post.scheduled_at).toISOString().slice(0, 10);
+      if (!calendar[date]) calendar[date] = [];
+      calendar[date].push(post);
     }
 
-    return NextResponse.json({ calendar: grouped }, { status: 200 });
+    return NextResponse.json({ calendar }, { status: 200 });
   } catch (error) {
     console.error('[GET /api/schedule]', error);
     return NextResponse.json({ error: 'Failed to read schedule' }, { status: 500 });
@@ -41,16 +31,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'postId and scheduledAt are required' }, { status: 400 });
     }
 
-    const data = await readData();
-    const post = data.posts.find(p => p.id === postId);
+    const post = await updatePost(postId, { scheduled_at: scheduledAt, status: 'scheduled' });
 
-    if (!post) {
-      return NextResponse.json({ error: 'Post not found' }, { status: 404 });
-    }
-
-    post.scheduledAt = scheduledAt;
-    post.status = 'scheduled';
-    await writeData(data);
+    await Promise.all(
+      post.platforms.map((platform: string) =>
+        createScheduledJob({
+          post_id: post.id,
+          platform: platform as 'instagram' | 'linkedin' | 'twitter' | 'pinterest' | 'dribbble' | 'gmb',
+          scheduled_at: scheduledAt,
+          status: 'pending',
+          result: null,
+          processed_at: null,
+        })
+      )
+    );
 
     return NextResponse.json({ post }, { status: 200 });
   } catch (error) {
