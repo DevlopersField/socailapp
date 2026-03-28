@@ -1,0 +1,136 @@
+{
+  "posts": [
+    {
+      "id": "post-001",
+      "title": "Dashboard UI Redesign Reveal",
+      "platforms": ["instagram", "linkedin"],
+      "scheduledAt": "2026-03-30T09:00:00Z",
+      "status": "scheduled",
+      "contentType": "design",
+      "content": {
+        "instagram": {
+          "caption": "We just shipped a completely redesigned dashboard for one of our SaaS clients. Clean hierarchy, intuitive navigation, dark mode support. The kind of UI that makes users actually want to log in every morning. Swipe to see the before/after.",
+          "hashtags": ["#uidesign", "#dashboarddesign", "#saas", "#darkmode", "#uxdesign", "#productdesign", "#webdesign", "#figma", "#designagency", "#uiux"]
+        },
+        "linkedin": {
+          "caption": "Our team just delivered a full dashboard redesign for a SaaS analytics platform. The challenge: make complex data feel approachable without dumbing it down.\n\nKey decisions we made:\n→ Sticky left nav with icon-first layout\n→ Cards instead of tables for top-level metrics\n→ Progressive disclosure for drill-down data\n→ Dark theme to reduce cognitive fatigue during long sessions\n\nResult: The client reported a 34% drop in support tickets related to navigation within the first two weeks.\n\nWhat UI patterns have you found most effective for data-heavy dashboards?",
+          "hashtags": ["#uidesign", "#saas", "#productdesign", "#webdevelopment", "#designthinking", "#ux"]
+        }
+      },
+      "media": ["dashboard-before.png", "dashboard-after.png", "dashboard-mobile.png"],
+      "createdAt": "2026-03-25T14:30:00Z"
+    },
+    {
+      "id": "post-002",
+      "title": "E-commerce Case Study: 40% Conversion Lift",
+      "platforms": ["linkedin", "twitter"],
+      "scheduledAt": "2026-04-01T10:00:00Z",
+      "status": "scheduled",
+      "contentType": "case-study",
+      "content": {
+        "linkedin": {
+          "caption": "Case study drop: How we redesigned a Shopify storefront and increased checkout conversions by 40% in 90 days.\n\nThe problems we found:\n• 6-step checkout that felt like filing taxes\n• Product images too small on mobile\n• No trust signals above the fold\n• CTA buttons blending into the background\n\nWhat we changed:\n→ Collapsed checkout to 3 steps with guest option upfront\n→ Full-bleed product imagery with zoom on tap\n→ Trust badges and reviews placed strategically near CTA\n→ High-contrast buttons with micro-animations on hover\n\nFull case study in the comments. Worth a read if you run an agency.",
+          "hashtags": ["#ecommerce", "#conversionoptimization", "#shopify", "#uxdesign", "#cro", "#webdesign", "#agencylife"]
+        },
+        "twitter": {
+          "caption": "We redesigned an e-commerce storefront and saw a 40% conversion lift in 90 days.\n\nThe biggest win? Cutting checkout from 6 steps to 3.\n\nThread on what else we changed 🧵",
+          "hashtags": ["#ecommerce", "#ux", "#conversionoptimization", "#webdesign"]
+        }
+      },
+      "media": ["ecommerce-case-study-cover.png", "checkout-flow-comparison.png"],
+      "createdAt": "2026-03-26T09:00:00Z"
+    },
+    {
+      "id": "post-003",
+      "title": "Web Design Trend: Bento Grid Layouts",
+      "platforms": ["instagram", "pinterest", "twitter"],
+      "scheduledAt": "2026-04-02T14:00:00Z",
+      "status": "scheduled",
+      "contentType": "trend",
+      "content": {
+        "instagram": {
+          "caption": "Bento grid layouts are everywhere in 2026 and honestly they deserve the hype. Modular, scalable, and they make dense information look clean and intentional. We've been using this pattern in client projects for 6 months — here's what actually works.",
+          "hashtags": ["#bentogrid", "#webdesigntrends", "#uidesign", "#gridlayout", "#webdesign", "#designtrends2026", "#uxdesign", "#creativedirection", "#digitaldesign"]
+        },
+        "pinterest": {
+          "caption": "Bento grid layout inspiration — modular web design trend 2026. Save this for your next project.",
+          "hashtags": ["#bentogrid", "#webdesign", "#uidesign", "#designinspiration", "#layoutdesign"]
+        },
+        "twitter": {
+          "caption": "Bento grids went from Apple marketing pages to the default homepage layout for every SaaS in 2026.\n\nHere's why they work and when they don't 👇",
+          "hashtags": ["#webdesign", "#uidesign", "#bentogrid"]
+        }
+      },
+      "media": ["bento-grid-examples.png", "bento-dos-donts.png"],
+      "createdAt": "2026-03-26T11:00:00Z"
+    },
+    {
+      "id": "post-004",
+      "title": "Typography in Brand Systems — Knowledge Post",
+      "platforms": ["instagram", "linkedin"],
+      "scheduledAt": "2026-04-04T11:00:00Z",
+      "status": "scheduled",
+      "contentType": "knowledge",
+      "content": {
+        "instagram": {
+          "caption": "Typography is doing 60% of the work in any brand system and it gets half the credit. Here's how we approach type scale, pairing, and hierarchy for every client project. Save this — you'll reference it.",
+          "hashtags": ["#typography", "#branding", "#branddesign", "#typescale", "#fontpairing", "#designsystems", "#graphicdesign", "#brandidentity", "#typedesign"]
+        },
+        "linkedin": {
+          "caption": "Nobody talks enough about typography in brand systems.\n\nWe've audited dozens of brand guidelines over the years and the weakest link is almost always the type system — either too many fonts, no clear hierarchy, or rules that fall apart at small sizes.\n\nHere's what a solid type system actually needs:\n→ A primary face for headlines (usually a variable font)\n→ A secondary face for body (high x-height, excellent screen rendering)\n→ A monospace option for code/data (especially for tech clients)\n→ A defined scale (we use a 1.25 modular scale as default)\n→ Weight and style rules for emphasis, not just size\n\nThe payoff: consistent output across every designer and every touchpoint.",
+          "hashtags": ["#typography", "#brandsystems", "#designsystems", "#branding", "#ux"]
+        }
+      },
+      "media": ["type-scale-chart.png", "font-pairing-examples.png"],
+      "createdAt": "2026-03-27T08:00:00Z"
+    },
+    {
+      "id": "post-005",
+      "title": "Agency Service Spotlight: Brand Sprint",
+      "platforms": ["instagram", "linkedin", "gmb"],
+      "scheduledAt": "2026-04-07T09:00:00Z",
+      "status": "draft",
+      "contentType": "promotion",
+      "content": {
+        "instagram": {
+          "caption": "Launching a new product or startup? Our 5-day Brand Sprint gets you a complete visual identity — logo, colors, type, and guidelines — before your first investor meeting. Limited spots per month. Link in bio to learn more.",
+          "hashtags": ["#branding", "#startupbranding", "#brandidentity", "#logodesign", "#designagency", "#brandsprint", "#visualidentity", "#startups", "#agencylife"]
+        },
+        "linkedin": {
+          "caption": "We're opening 3 spots for our Brand Sprint this quarter.\n\nWhat you get in 5 days:\n• Logo suite (primary, secondary, icon)\n• Color system with accessibility-validated palette\n• Typography system with usage rules\n• Brand guidelines PDF\n• Figma source files\n\nIdeal for: seed-stage startups, product launches, agency rebrands.\n\nDM me to discuss fit. We take this seriously — no templated work.",
+          "hashtags": ["#branding", "#designagency", "#startup", "#brandidentity", "#b2b"]
+        },
+        "gmb": {
+          "caption": "Now offering Brand Sprint packages — complete visual identity in 5 days. Perfect for startups, product launches, and businesses ready for a rebrand. Book a free discovery call through our website.",
+          "hashtags": ["#branding", "#designagency", "#localagency"]
+        }
+      },
+      "media": ["brand-sprint-overview.png"],
+      "createdAt": "2026-03-27T16:00:00Z"
+    },
+    {
+      "id": "post-006",
+      "title": "Mobile-First Design Process Breakdown",
+      "platforms": ["instagram", "twitter", "pinterest"],
+      "scheduledAt": "2026-04-09T13:00:00Z",
+      "status": "scheduled",
+      "contentType": "knowledge",
+      "content": {
+        "instagram": {
+          "caption": "Mobile-first isn't just a CSS media query strategy — it's a design philosophy. Here's the actual process we follow to design for mobile before expanding to desktop, and why it produces better products across all screen sizes.",
+          "hashtags": ["#mobilefirst", "#responsivedesign", "#uxdesign", "#webdesign", "#mobiledesign", "#designprocess", "#uidesign", "#productdesign"]
+        },
+        "twitter": {
+          "caption": "\"Mobile-first\" gets treated like a CSS trick. It's actually a product design philosophy.\n\nHere's our process breakdown — from user flows to component design to breakpoint expansion 🧵",
+          "hashtags": ["#mobilefirst", "#uxdesign", "#webdesign", "#responsivedesign"]
+        },
+        "pinterest": {
+          "caption": "Mobile-first design process — step by step guide for web designers. Save for your process docs.",
+          "hashtags": ["#mobilefirst", "#webdesign", "#uxdesign", "#designprocess", "#responsivedesign"]
+        }
+      },
+      "media": ["mobile-first-process.png", "breakpoint-diagram.png"],
+      "createdAt": "2026-03-28T10:00:00Z"
+    }
+  ]
+}
