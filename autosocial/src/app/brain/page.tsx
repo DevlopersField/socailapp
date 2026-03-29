@@ -333,10 +333,10 @@ export default function BrainPage() {
               <h3 className="text-sm font-semibold text-[#f1f5f9] mb-3">🔍 Image Analysis</h3>
               <dl className="space-y-2 text-sm">
                 {[
-                  ['Subject', result.analysis.subject],
-                  ['Industry', result.analysis.industry],
-                  ['Mood', result.analysis.mood],
-                  ['Type', result.analysis.contentType],
+                  ['Subject', result.analysis?.subject],
+                  ['Industry', result.analysis?.industry],
+                  ['Mood', result.analysis?.mood],
+                  ['Type', result.analysis?.contentType],
                 ].map(([label, value]) => (
                   <div key={label} className="flex justify-between">
                     <dt className="text-[#94a3b8]">{label}</dt>
@@ -351,14 +351,14 @@ export default function BrainPage() {
               <dl className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <dt className="text-[#94a3b8]">Best Time</dt>
-                  <dd className="text-[#f1f5f9]">{result.strategy.bestTime}</dd>
+                  <dd className="text-[#f1f5f9]">{result.strategy?.bestTime}</dd>
                 </div>
                 <div className="flex justify-between">
                   <dt className="text-[#94a3b8]">Best Day</dt>
-                  <dd className="text-[#f1f5f9]">{result.strategy.bestDay}</dd>
+                  <dd className="text-[#f1f5f9]">{result.strategy?.bestDay}</dd>
                 </div>
               </dl>
-              <p className="text-[#94a3b8] text-xs mt-3 p-2 bg-[#12131e] rounded-lg">{result.strategy.contentTip}</p>
+              <p className="text-[#94a3b8] text-xs mt-3 p-2 bg-[#12131e] rounded-lg">{result.strategy?.contentTip}</p>
             </div>
 
             <div className="bg-[#1a1b2e] rounded-xl border border-[#2a2b3e] p-5">
@@ -373,9 +373,9 @@ export default function BrainPage() {
             <h3 className="text-lg font-semibold text-[#f1f5f9] mb-4">🎯 Titles</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {[
-                ['Hook', result.titles.hook, '🪝'],
-                ['Value', result.titles.value, '💎'],
-                ['Curiosity', result.titles.curiosity, '❓'],
+                ['Hook', result.titles?.hook, '🪝'],
+                ['Value', result.titles?.value, '💎'],
+                ['Curiosity', result.titles?.curiosity, '❓'],
               ].map(([type, title, icon]) => (
                 <div key={type} className="p-3 bg-[#12131e] rounded-lg border border-[#2a2b3e] group">
                   <div className="flex items-center justify-between mb-2">
@@ -408,29 +408,29 @@ export default function BrainPage() {
             </div>
             <div className="relative">
               <div className="p-4 bg-[#12131e] rounded-lg border border-[#2a2b3e] min-h-[120px] whitespace-pre-wrap text-[#f1f5f9] text-sm leading-relaxed">
-                {result.captions[activeTab] || 'No caption generated for this platform.'}
+                {result.captions?.[activeTab] || 'No caption generated for this platform.'}
               </div>
               <button
-                onClick={() => copyToClipboard(result.captions[activeTab] || '', `caption-${activeTab}`)}
+                onClick={() => copyToClipboard(result.captions?.[activeTab] || '', `caption-${activeTab}`)}
                 className="absolute top-3 right-3 px-2 py-1 bg-[#1a1b2e] text-[#6366f1] text-xs rounded hover:bg-[#2a2b3e] transition-colors"
               >
                 {copiedField === `caption-${activeTab}` ? '✓ Copied' : 'Copy'}
               </button>
             </div>
             {/* Hashtags for active platform */}
-            {result.hashtags[activeTab]?.length > 0 && (
+            {result.hashtags?.[activeTab]?.length > 0 && (
               <div className="mt-3">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-[#94a3b8] text-xs">Hashtags ({result.hashtags[activeTab].length})</span>
+                  <span className="text-[#94a3b8] text-xs">Hashtags ({result.hashtags?.[activeTab].length})</span>
                   <button
-                    onClick={() => copyToClipboard(result.hashtags[activeTab].join(' '), `hashtags-${activeTab}`)}
+                    onClick={() => copyToClipboard(result.hashtags?.[activeTab].join(' '), `hashtags-${activeTab}`)}
                     className="text-xs text-[#6366f1] hover:text-[#4f46e5]"
                   >
                     {copiedField === `hashtags-${activeTab}` ? '✓ Copied' : 'Copy All'}
                   </button>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
-                  {result.hashtags[activeTab].map((tag, i) => (
+                  {result.hashtags?.[activeTab].map((tag, i) => (
                     <span key={i} className="px-2 py-1 bg-[#6366f1]/10 text-[#6366f1] text-xs rounded-md">{tag}</span>
                   ))}
                 </div>

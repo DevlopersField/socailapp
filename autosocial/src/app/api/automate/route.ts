@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
 
     // Run AI + resize + image info ALL in parallel
     const [aiResult, resizedImages, imageInfo] = await Promise.all([
-      analyzeImageAndGenerate(imageBase64, file.type, context || undefined),
+      analyzeImageAndGenerate(imageBase64, file.type, context || undefined, user.id),
       resizeForAllPlatforms(imageBuffer),
       getImageInfo(imageBuffer),
     ]);

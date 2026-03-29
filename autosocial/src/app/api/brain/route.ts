@@ -3,11 +3,16 @@ import { analyzeImageAndGenerate } from '@/lib/ai-provider';
 import { resizeForAllPlatforms, getImageInfo } from '@/lib/image-resizer';
 import type { ResizeMode } from '@/lib/image-resizer';
 import type { Platform } from '@/lib/types';
+import { getAuthClient } from '@/lib/auth-helpers';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = getAuthClient(request);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const formData = await request.formData();
     const file = formData.get('image') as File | null;
     const context = formData.get('context') as string | null;
@@ -41,7 +46,7 @@ export async function POST(request: NextRequest) {
 
     // Run AI analysis and image resize in parallel
     const [aiResult, resizedImages, imageInfo] = await Promise.all([
-      analyzeImageAndGenerate(imageBase64, file.type, context || undefined),
+      analyzeImageAndGenerate(imageBase64, file.type, context || undefined, user.id),
       resizeForAllPlatforms(imageBuffer, {
         mode: resizeMode,
         background: bgColor,

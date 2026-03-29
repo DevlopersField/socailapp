@@ -1,3 +1,5 @@
+import { createClient } from '@supabase/supabase-js';
+
 export type AIProvider = 'openrouter' | 'openai' | 'anthropic';
 
 interface AIConfig {
@@ -7,54 +9,61 @@ interface AIConfig {
   baseUrl: string;
 }
 
-const PROVIDER_CONFIGS: Record<AIProvider, Omit<AIConfig, 'apiKey'>> = {
-  openrouter: {
-    provider: 'openrouter',
-    model: 'nvidia/nemotron-3-super-120b-a12b:free',
-    baseUrl: 'https://openrouter.ai/api/v1',
-  },
-  openai: {
-    provider: 'openai',
-    model: 'gpt-4o',
-    baseUrl: 'https://api.openai.com/v1',
-  },
-  anthropic: {
-    provider: 'anthropic',
-    model: 'claude-sonnet-4-20250514',
-    baseUrl: 'https://api.anthropic.com/v1',
-  },
+const BASE_URLS: Record<AIProvider, string> = {
+  openrouter: 'https://openrouter.ai/api/v1',
+  openai: 'https://api.openai.com/v1',
+  anthropic: 'https://api.anthropic.com/v1',
 };
 
-export function getAIConfig(): AIConfig {
-  const rawProvider = process.env.AI_PROVIDER || 'openrouter';
-  const provider: AIProvider = rawProvider in PROVIDER_CONFIGS
-    ? (rawProvider as AIProvider)
-    : 'openrouter';
-  const keyEnvMap: Record<AIProvider, string> = {
-    openrouter: 'OPENROUTER_API_KEY',
-    openai: 'OPENAI_API_KEY',
-    anthropic: 'ANTHROPIC_API_KEY',
+// Get AI config from user's saved settings in Supabase
+export async function getUserAIConfig(userId: string): Promise<AIConfig> {
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+
+  const { data } = await supabase.from('user_settings').select('*').eq('user_id', userId).single();
+
+  if (!data) {
+    throw new Error('No AI settings configured. Go to Settings to set up your AI provider and API key.');
+  }
+
+  const provider = (data.ai_provider || 'openrouter') as AIProvider;
+  const keyMap: Record<AIProvider, string> = {
+    openrouter: data.openrouter_key || '',
+    openai: data.openai_key || '',
+    anthropic: data.anthropic_key || '',
   };
-  const apiKey = process.env[keyEnvMap[provider]] || '';
-  return { ...PROVIDER_CONFIGS[provider], apiKey };
+
+  const apiKey = keyMap[provider];
+  if (!apiKey) {
+    throw new Error(`No API key set for ${provider}. Go to Settings → AI Provider to add your ${provider} key.`);
+  }
+
+  return {
+    provider,
+    apiKey,
+    model: data.ai_model || 'nvidia/nemotron-3-super-120b-a12b:free',
+    baseUrl: BASE_URLS[provider],
+  };
 }
 
 export async function analyzeImageAndGenerate(
   imageBase64: string,
   mimeType: string,
-  userContext?: string
+  userContext?: string,
+  userId?: string,
 ): Promise<BrainOutput> {
-  const config = getAIConfig();
-
-  if (!config.apiKey) {
-    throw new Error('No AI API key configured. Go to Settings → AI Provider to add your key.');
+  if (!userId) {
+    throw new Error('Authentication required. Please sign in.');
   }
+
+  const config = await getUserAIConfig(userId);
 
   if (config.provider === 'anthropic') {
     return callAnthropic(config, imageBase64, mimeType, userContext);
   }
 
-  // OpenRouter and OpenAI share OpenAI-compatible API format
   return callOpenAICompatible(config, imageBase64, mimeType, userContext);
 }
 
@@ -67,9 +76,10 @@ async function callOpenAICompatible(
   const systemPrompt = buildSystemPrompt();
   const userMessage = buildUserMessage(userContext);
   const isOpenRouter = config.provider === 'openrouter';
-  const isVisionModel = !config.model.includes('nemotron');
 
-  // Build message content — use vision format for vision models, text-only for others
+  // Models that support vision (image analysis)
+  const isVisionModel = config.model.includes('vl') || config.model.includes('gemini') || config.model.includes('gpt-4o') || config.model.includes('claude');
+
   const userContent = isVisionModel
     ? [
         { type: 'image_url', image_url: { url: `data:${mimeType};base64,${imageBase64}` } },
@@ -87,16 +97,6 @@ async function callOpenAICompatible(
     max_tokens: 4000,
   };
 
-  // Enable reasoning for OpenRouter models that support it
-  if (isOpenRouter) {
-    body.reasoning = { enabled: true };
-  }
-
-  // Only request JSON format for models that support it
-  if (!config.model.includes('nemotron')) {
-    body.response_format = { type: 'json_object' };
-  }
-
   const response = await fetch(`${config.baseUrl}/chat/completions`, {
     method: 'POST',
     headers: {
@@ -112,29 +112,26 @@ async function callOpenAICompatible(
   if (!response.ok) {
     const err = await response.text();
     console.error(`[AI ${config.provider}] Error:`, err);
-    throw new Error(`AI request failed. Check your API key and try again.`);
+    throw new Error(`AI request failed (${response.status}). Check your API key in Settings.`);
   }
 
   const data = await response.json();
   const message = data.choices?.[0]?.message;
-  const content = message?.content || '';
+  const content = message?.content || message?.reasoning || '';
 
-  // Log reasoning if available (for debugging)
-  if (message?.reasoning_details) {
-    console.log('[AI] Reasoning details available');
+  if (!content) {
+    throw new Error('AI returned empty response. Try a different model in Settings.');
   }
 
   try {
-    // Extract JSON from response — use non-greedy match to find the outermost balanced braces
     const parsed = extractJSON(content);
     if (parsed && 'titles' in parsed && 'captions' in parsed) {
       return parsed as unknown as BrainOutput;
     }
-    // Direct parse as fallback
     return JSON.parse(content) as BrainOutput;
   } catch {
-    console.error('[AI] Failed to parse JSON response, content:', content.slice(0, 200));
-    throw new Error(`AI request failed. Check your API key and try again.`);
+    console.error('[AI] Failed to parse JSON, content:', content.slice(0, 300));
+    throw new Error('AI response was not valid JSON. Try again or switch model in Settings.');
   }
 }
 
@@ -158,60 +155,41 @@ async function callAnthropic(
       model: config.model,
       max_tokens: 4000,
       system: systemPrompt,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            { type: 'image', source: { type: 'base64', media_type: mimeType, data: imageBase64 } },
-            { type: 'text', text: userMessage },
-          ],
-        },
-      ],
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image', source: { type: 'base64', media_type: mimeType, data: imageBase64 } },
+          { type: 'text', text: userMessage },
+        ],
+      }],
     }),
   });
 
   if (!response.ok) {
-    const err = await response.text();
-    console.error('[AI Anthropic] Error:', err);
-    throw new Error(`AI request failed. Check your API key and try again.`);
+    throw new Error(`Anthropic API failed (${response.status}). Check your API key in Settings.`);
   }
 
   const data = await response.json();
   const textBlock = data.content?.find((b: { type: string }) => b.type === 'text');
-  try {
-    const parsed = extractJSON(textBlock?.text || '');
-    if (parsed && 'titles' in parsed && 'captions' in parsed) {
-      return parsed as unknown as BrainOutput;
-    }
-    throw new Error(`AI request failed. Check your API key and try again.`);
-  } catch {
-    throw new Error(`AI request failed. Check your API key and try again.`);
+  const parsed = extractJSON(textBlock?.text || '');
+  if (parsed && 'titles' in parsed && 'captions' in parsed) {
+    return parsed as unknown as BrainOutput;
   }
+  throw new Error('Anthropic response was not valid JSON. Try again.');
 }
 
 function extractJSON(text: string): Record<string, unknown> | null {
-  // Find the first { and match balanced braces to find the complete JSON object
   const start = text.indexOf('{');
   if (start === -1) return null;
-
   let depth = 0;
   let end = -1;
   for (let i = start; i < text.length; i++) {
     if (text[i] === '{') depth++;
     else if (text[i] === '}') depth--;
-    if (depth === 0) {
-      end = i;
-      break;
-    }
+    if (depth === 0) { end = i; break; }
   }
-
   if (end === -1) return null;
-
-  try {
-    return JSON.parse(text.slice(start, end + 1));
-  } catch {
-    return null;
-  }
+  try { return JSON.parse(text.slice(start, end + 1)); } catch { return null; }
 }
 
 function buildSystemPrompt(): string {
@@ -259,14 +237,13 @@ Rules:
 - Never use "excited to announce", "game-changer", "thrilled", "leveraging"
 - Every caption must have a clear CTA
 - Hashtags must be platform-appropriate counts
-- Be specific to the image content, not generic`;
+- Be specific to the image content, not generic
+- Respond ONLY with JSON, no other text`;
 }
 
 function buildUserMessage(userContext?: string): string {
   let msg = 'Analyze this image and generate a complete social media content package for all 6 platforms (Instagram, LinkedIn, Twitter/X, Pinterest, Dribbble, Google My Business).';
-  if (userContext) {
-    msg += `\n\nAdditional context from the user: ${userContext}`;
-  }
+  if (userContext) msg += `\n\nAdditional context from the user: ${userContext}`;
   msg += '\n\nRespond ONLY with the JSON object, no other text.';
   return msg;
 }
@@ -292,4 +269,3 @@ export interface BrainOutput {
     contentTip: string;
   };
 }
-
