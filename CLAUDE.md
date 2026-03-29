@@ -8,12 +8,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **AutoSocial** — AI Social Media Manager for web agencies.
 
-- **Stack:** Next.js 16 (App Router) + TypeScript + Tailwind CSS v4
+- **Stack:** Next.js 16 (App Router) + TypeScript + Tailwind CSS v4 + Supabase
 - **App Dir:** `autosocial/`
 - **Run:** `cd autosocial && npm run dev`
-- **Data:** JSON files in `autosocial/src/data/` (schedule.json, analytics.json)
+- **Auth:** Supabase Auth (email/password), per-user data isolation via RLS
+- **Database:** Supabase PostgreSQL (5 tables with RLS policies)
 - **AI:** OpenRouter (Nemotron free) / OpenAI / Anthropic — switchable via .env.local
-- **Image Processing:** Sharp (contain/cover/stretch, auto-resize all platforms)
+- **Image Processing:** Sharp (parallel resize, contain/cover/stretch)
+- **Automation:** Upload image → AI generates → auto-schedule → package (one click)
 - **Platforms:** Instagram, LinkedIn, Twitter/X, Pinterest, Dribbble, Google My Business
 
 ## Custom Agents
@@ -32,7 +34,7 @@ Use them via `@"agent-name"` in conversation or `/agents` to browse.
 
 ## Custom Skills
 
-19 skills are available in `.claude/skills/`:
+20 skills are available in `.claude/skills/`:
 
 ### General Skills
 
@@ -50,6 +52,7 @@ Use them via `@"agent-name"` in conversation or `/agents` to browse.
 | Thinking | `/thinking` | Ask clarifying questions first, then deliver precise output |
 | Documentation | `/documentation` | Generate READMEs, API docs, architecture docs |
 | **Security** | **`/security`** | **OWASP audit, API hardening, secret protection, XSS/CSRF** |
+| **Agency** | **`/agency`** | **Full team orchestration — dev, design, SEO, security, QA** |
 
 ### AutoSocial Skills (Social Media Manager Suite)
 

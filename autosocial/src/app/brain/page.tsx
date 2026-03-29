@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { PLATFORMS } from '@/lib/platforms';
 import type { Platform } from '@/lib/types';
+import { apiUpload } from '@/lib/api';
 
 type ResizeMode = 'contain' | 'cover' | 'fill';
 type OutputFormat = 'jpeg' | 'png' | 'webp';
@@ -19,6 +20,8 @@ interface BrainResult {
   hashtags: Record<string, string[]>;
   strategy: { bestTime: string; bestDay: string; contentTip: string };
   images: { platform: Platform; spec: string; orientation: Orientation; width: number; height: number; sizeKB: number; filename: string; url: string }[];
+  automated?: { contentGenerated: boolean; imagesResized: number; postCreated: boolean; scheduled: boolean; jobsCreated: number };
+  post?: { id: string };
 }
 
 const ORIENTATION_ICONS: Record<string, string> = { landscape: '🖼', portrait: '📱', square: '⬜' };
@@ -37,6 +40,11 @@ export default function BrainPage() {
   const [bgColor, setBgColor] = useState('#000000');
   const [outputFormat, setOutputFormat] = useState<OutputFormat>('jpeg');
   const [quality, setQuality] = useState(90);
+  const [scheduleDate, setScheduleDate] = useState(() => {
+    const tomorrow = new Date(Date.now() + 86400000);
+    return tomorrow.toISOString().slice(0, 16);
+  });
+  const [autoSchedule, setAutoSchedule] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = useCallback((f: File) => {
@@ -66,9 +74,11 @@ export default function BrainPage() {
     formData.append('bgColor', bgColor);
     formData.append('quality', quality.toString());
     formData.append('format', outputFormat);
+    formData.append('scheduledAt', new Date(scheduleDate).toISOString());
+    formData.append('autoSchedule', autoSchedule.toString());
 
     try {
-      const res = await fetch('/api/brain', { method: 'POST', body: formData });
+      const res = await apiUpload('/api/automate', formData);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Processing failed');
       setResult(data);
@@ -252,6 +262,24 @@ export default function BrainPage() {
               </div>
             </div>
 
+            {/* Scheduling */}
+            <div className="bg-[#1a1b2e] rounded-xl border border-[#2a2b3e] p-5 space-y-3">
+              <h3 className="text-sm font-semibold text-[#f1f5f9]">Scheduling</h3>
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" checked={autoSchedule} onChange={e => setAutoSchedule(e.target.checked)} className="w-4 h-4 accent-[#6366f1] rounded" />
+                <div>
+                  <span className="text-sm text-[#f1f5f9]">Auto-schedule for all platforms</span>
+                  <p className="text-[10px] text-[#64748b]">Post will be created and scheduled automatically</p>
+                </div>
+              </label>
+              {autoSchedule && (
+                <div>
+                  <label className="text-xs text-[#94a3b8] block mb-1.5">Schedule Date & Time</label>
+                  <input type="datetime-local" value={scheduleDate} onChange={e => setScheduleDate(e.target.value)} className="w-full bg-[#12131e] border border-[#2a2b3e] text-[#f1f5f9] rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#6366f1]/50" />
+                </div>
+              )}
+            </div>
+
             <button
               onClick={handleGenerate}
               disabled={!file || loading}
@@ -262,8 +290,10 @@ export default function BrainPage() {
                   <span className="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   Processing...
                 </>
+              ) : autoSchedule ? (
+                <>🚀 Generate & Schedule</>
               ) : (
-                <>🧠 Generate Everything</>
+                <>🧠 Generate Content</>
               )}
             </button>
 
@@ -277,6 +307,26 @@ export default function BrainPage() {
       {/* Results */}
       {result && (
         <div className="space-y-6">
+          {/* Automation Success Banner */}
+          {result.automated && (
+            <div className="bg-[#22c55e]/10 border border-[#22c55e]/30 rounded-xl p-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">🚀</span>
+                  <div>
+                    <p className="text-[#22c55e] font-semibold">Automation Complete!</p>
+                    <p className="text-[#94a3b8] text-sm">
+                      Content generated • {result.automated.imagesResized} images resized
+                      {result.automated.scheduled && ' • Post scheduled'}
+                      {result.automated.jobsCreated > 0 && ` • ${result.automated.jobsCreated} platform jobs queued`}
+                    </p>
+                  </div>
+                </div>
+                <a href="/scheduler" className="px-4 py-2 bg-[#22c55e] hover:bg-[#16a34a] text-white text-sm rounded-lg transition-colors">View in Calendar →</a>
+              </div>
+            </div>
+          )}
+
           {/* Analysis + Original */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div className="bg-[#1a1b2e] rounded-xl border border-[#2a2b3e] p-5">

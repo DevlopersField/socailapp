@@ -47,7 +47,7 @@ export async function analyzeImageAndGenerate(
   const config = getAIConfig();
 
   if (!config.apiKey) {
-    return generateFallbackContent(userContext);
+    throw new Error('No AI API key configured. Go to Settings → AI Provider to add your key.');
   }
 
   if (config.provider === 'anthropic') {
@@ -112,7 +112,7 @@ async function callOpenAICompatible(
   if (!response.ok) {
     const err = await response.text();
     console.error(`[AI ${config.provider}] Error:`, err);
-    return generateFallbackContent(userContext);
+    throw new Error(`AI request failed. Check your API key and try again.`);
   }
 
   const data = await response.json();
@@ -134,7 +134,7 @@ async function callOpenAICompatible(
     return JSON.parse(content) as BrainOutput;
   } catch {
     console.error('[AI] Failed to parse JSON response, content:', content.slice(0, 200));
-    return generateFallbackContent(userContext);
+    throw new Error(`AI request failed. Check your API key and try again.`);
   }
 }
 
@@ -173,7 +173,7 @@ async function callAnthropic(
   if (!response.ok) {
     const err = await response.text();
     console.error('[AI Anthropic] Error:', err);
-    return generateFallbackContent(userContext);
+    throw new Error(`AI request failed. Check your API key and try again.`);
   }
 
   const data = await response.json();
@@ -183,9 +183,9 @@ async function callAnthropic(
     if (parsed && 'titles' in parsed && 'captions' in parsed) {
       return parsed as unknown as BrainOutput;
     }
-    return generateFallbackContent(userContext);
+    throw new Error(`AI request failed. Check your API key and try again.`);
   } catch {
-    return generateFallbackContent(userContext);
+    throw new Error(`AI request failed. Check your API key and try again.`);
   }
 }
 
@@ -293,41 +293,3 @@ export interface BrainOutput {
   };
 }
 
-function generateFallbackContent(userContext?: string): BrainOutput {
-  const ctx = userContext || 'design showcase';
-  return {
-    analysis: {
-      subject: 'Visual content for social media',
-      industry: 'Design / Creative',
-      mood: 'Professional, modern',
-      contentType: 'design',
-      detectedText: '',
-    },
-    titles: {
-      hook: `This is what happens when design meets strategy`,
-      value: `How we turned a concept into a scroll-stopping visual`,
-      curiosity: `The one design principle most agencies ignore`,
-    },
-    captions: {
-      instagram: `Design is not decoration — it's communication.\n\nThis piece was crafted with intention at every pixel. From color theory to visual hierarchy, every decision serves a purpose.\n\nWhat catches your eye first? Tell us below 👇`,
-      linkedin: `Good design doesn't just look right — it feels right.\n\nWe approach every project with a simple framework:\n\n1. Understand the audience\n2. Define the visual language\n3. Execute with precision\n4. Iterate based on data\n\nThis ${ctx} is a perfect example of that process in action.\n\nThe result? A visual that doesn't just attract attention — it holds it.\n\nWhat's your design process? I'd love to compare notes.`,
-      twitter: `Design is communication, not decoration. Here's our latest work that proves it 🎯`,
-      pinterest: `${ctx} — professional design inspiration for creative agencies. Modern visual design with clean composition and strategic color choices.`,
-      dribbble: `New work: ${ctx}. Focused on visual hierarchy and clean composition. Every element serves the story.`,
-      gmb: `Check out our latest design work. We create visuals that drive results for businesses. Contact us for a free consultation.`,
-    },
-    hashtags: {
-      instagram: ['#DesignInspiration', '#CreativeAgency', '#VisualDesign', '#GraphicDesign', '#DesignCommunity', '#CreativeDirection', '#BrandDesign', '#DesignThinking', '#MinimalDesign', '#DesignDaily', '#UIDesign', '#CreativeWork', '#DesignProcess', '#ArtDirection', '#VisualIdentity'],
-      linkedin: ['#Design', '#CreativeAgency', '#BrandStrategy', '#VisualDesign'],
-      twitter: ['#Design', '#CreativeAgency'],
-      pinterest: ['#DesignInspiration', '#CreativeDesign', '#VisualDesign', '#GraphicDesign', '#ModernDesign', '#DesignIdeas', '#CreativeAgency'],
-      dribbble: ['#design', '#visual', '#creative', '#agency', '#branding'],
-      gmb: [],
-    },
-    strategy: {
-      bestTime: '11:00 AM EST',
-      bestDay: 'Tuesday',
-      contentTip: 'Post the Instagram version first, then repurpose to LinkedIn 2 hours later for maximum reach.',
-    },
-  };
-}

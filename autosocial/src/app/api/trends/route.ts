@@ -116,14 +116,11 @@ async function fetchGoogleTrends(): Promise<TrendItem[]> {
       rank++;
     }
 
-    if (items.length > 0) {
-      console.log(`[Trends] Google: ${items.length} trends fetched`);
-      return items;
-    }
-    return googleFallback(now);
+    console.log(`[Trends] Google: ${items.length} trends fetched`);
+    return items;
   } catch (e) {
     console.error('[Trends] Google fetch failed:', e);
-    return googleFallback(now);
+    return [];
   }
 }
 
@@ -139,7 +136,7 @@ async function fetchRedditTrends(): Promise<TrendItem[]> {
     const json = await res.json();
     const posts = json?.data?.children || [];
 
-    if (posts.length === 0) return redditFallback(now);
+    if (posts.length === 0) return [];
 
     console.log(`[Trends] Reddit: ${Math.min(posts.length, 15)} trends fetched`);
     return posts.slice(0, 15).map((post: { data: { title: string; subreddit: string; score: number; permalink: string; url: string } }, i: number) => ({
@@ -154,7 +151,7 @@ async function fetchRedditTrends(): Promise<TrendItem[]> {
     }));
   } catch (e) {
     console.error('[Trends] Reddit fetch failed:', e);
-    return redditFallback(now);
+    return [];
   }
 }
 
@@ -196,44 +193,9 @@ async function fetchTwitterTrends(): Promise<TrendItem[]> {
       console.log(`[Trends] Twitter: ${trends.length} trends scraped`);
       return trends;
     }
-    return twitterFallback(now);
+    return [];
   } catch (e) {
     console.error('[Trends] Twitter scrape failed:', e);
-    return twitterFallback(now);
+    return [];
   }
-}
-
-// Fallback data when live APIs fail
-function googleFallback(now: string): TrendItem[] {
-  const topics = ['AI Tools 2026', 'Web Design Trends', 'Brand Identity Tips', 'SaaS Growth Strategies', 'Dark Mode UI Design', 'Design Systems Best Practices', 'No-Code Platforms', 'Motion Design Web', 'Accessibility WCAG', 'Remote Work Tools', 'Content Marketing AI', 'Social Media Automation'];
-  return topics.map((t, i) => ({ id: makeId(), source: 'google' as const, keyword: t, volume: (12 - i) * 15000, trend_score: Math.max(98 - i * 7, 12), category: 'Search Trend', url: `https://trends.google.com/trends/explore?q=${encodeURIComponent(t)}`, fetched_at: now }));
-}
-
-function redditFallback(now: string): TrendItem[] {
-  const topics = [
-    { title: 'This AI tool just changed how our agency works', sub: 'webdesign', score: 12400 },
-    { title: 'Best portfolio designs of 2026 so far', sub: 'web_design', score: 8900 },
-    { title: 'Client asked for "make the logo bigger" — here is what I did instead', sub: 'graphic_design', score: 7200 },
-    { title: 'Free design resources every agency should know about', sub: 'design', score: 6800 },
-    { title: 'How I went from freelancer to agency owner in 2 years', sub: 'Entrepreneur', score: 5500 },
-    { title: 'The state of CSS in 2026 — what has actually changed', sub: 'webdev', score: 4900 },
-    { title: 'Show HN: Open source social media scheduler', sub: 'SideProject', score: 4200 },
-    { title: 'Why most agency websites fail at conversion', sub: 'marketing', score: 3800 },
-  ];
-  return topics.map((t, i) => ({ id: makeId(), source: 'reddit' as const, keyword: t.title, volume: t.score, trend_score: Math.max(93 - i * 9, 10), category: `r/${t.sub}`, url: null, fetched_at: now }));
-}
-
-function twitterFallback(now: string): TrendItem[] {
-  const day = new Date().getDay();
-  const sets = [
-    ['#AIArt', '#WebDesign2026', '#StartupLife', '#TechTwitter', '#ProductHunt', '#IndieHacker', '#SaaSGrowth', '#BuildInPublic', '#DesignTwitter', '#RemoteWork'],
-    ['#UIDesign', '#Figma', '#ReactJS', '#TypeScript', '#NextJS', '#TailwindCSS', '#OpenSource', '#DevCommunity', '#CodeNewbie', '#100DaysOfCode'],
-    ['#Branding', '#Marketing', '#ContentCreator', '#SocialMedia', '#DigitalMarketing', '#SEO', '#GrowthHacking', '#PersonalBrand', '#CreatorEconomy', '#Analytics'],
-    ['#DesignSystem', '#UXResearch', '#Accessibility', '#DarkMode', '#MobileFirst', '#WebPerf', '#CSSArt', '#SVG', '#Animation', '#Responsive'],
-    ['#Startup', '#Funding', '#ProductDesign', '#UX', '#CustomerSuccess', '#B2BSaaS', '#APIFirst', '#Serverless', '#EdgeComputing', '#CloudNative'],
-    ['#FreelanceLife', '#AgencyLife', '#ClientWork', '#DesignInspiration', '#Portfolio', '#CaseStudy', '#DesignProcess', '#CreativeDirection', '#ArtDirection', '#Typography'],
-    ['#NoCode', '#LowCode', '#Automation', '#AITools', '#GenerativeAI', '#MachineLearning', '#DataScience', '#Prompt', '#LLM', '#AgentAI'],
-  ];
-  const topics = sets[day % sets.length];
-  return topics.map((t, i) => ({ id: makeId(), source: 'twitter' as const, keyword: t, volume: Math.floor(Math.random() * 60000) + 8000, trend_score: Math.max(90 - i * 7, 10), category: 'Hashtag', url: `https://x.com/search?q=${encodeURIComponent(t)}`, fetched_at: now }));
 }

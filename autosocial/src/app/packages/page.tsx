@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { PLATFORMS } from '@/lib/platforms';
 import type { Platform } from '@/lib/types';
+import { apiGet } from '@/lib/api';
 
 interface PostItem {
   id: string;
@@ -21,7 +22,7 @@ export default function PackagesPage() {
   const [format, setFormat] = useState<'files' | 'zip' | 'json'>('files');
 
   useEffect(() => {
-    fetch('/api/posts')
+    apiGet('/api/posts')
       .then(r => r.json())
       .then(data => { setScheduledPosts(data.posts || []); setLoading(false); })
       .catch(() => setLoading(false));

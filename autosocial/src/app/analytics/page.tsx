@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { PLATFORMS } from '@/lib/platforms';
 import type { Platform } from '@/lib/types';
+import { apiGet } from '@/lib/api';
 
 interface AnalyticsEntry {
   id: string;
@@ -21,7 +22,7 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/analytics')
+    apiGet('/api/analytics')
       .then(r => r.json())
       .then(data => {
         setEntries(data.entries || []);

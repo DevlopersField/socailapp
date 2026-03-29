@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { PLATFORMS } from '@/lib/platforms';
 import type { Platform } from '@/lib/types';
+import { apiGet } from '@/lib/api';
 
 interface PostItem {
   id: string;
@@ -29,8 +30,8 @@ export default function Dashboard() {
 
   useEffect(() => {
     Promise.all([
-      fetch('/api/posts').then(r => r.json()),
-      fetch('/api/analytics').then(r => r.json()),
+      apiGet('/api/posts').then(r => r.json()),
+      apiGet('/api/analytics').then(r => r.json()),
     ]).then(([postsData, analyticsData]) => {
       setPosts(postsData.posts || []);
       setAnalytics(analyticsData.summary || null);

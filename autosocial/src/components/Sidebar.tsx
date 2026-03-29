@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
+import { useAuth } from './AuthProvider';
 
 interface NavItem {
   label: string;
@@ -14,7 +15,6 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard', href: '/', icon: '⊞' },
   { label: 'Brain', href: '/brain', icon: '🧠' },
   { label: 'Trends', href: '/trends', icon: '📈' },
-  { label: 'Content Creator', href: '/content', icon: '✏' },
   { label: 'Scheduler', href: '/scheduler', icon: '◷' },
   { label: 'Packages', href: '/packages', icon: '⊡' },
   { label: 'Analytics', href: '/analytics', icon: '▲' },
@@ -25,6 +25,7 @@ const NAV_ITEMS: NavItem[] = [
 export default function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const { user, signOut } = useAuth();
 
   const isActive = (href: string) => {
     if (href === '/') return pathname === '/';
@@ -154,6 +155,23 @@ export default function Sidebar() {
           })}
         </ul>
       </nav>
+
+      {/* User + Sign Out */}
+      {user && (
+        <div style={{ borderTop: '1px solid var(--border)', padding: '8px' }} className="shrink-0">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', borderRadius: '8px', overflow: 'hidden' }}>
+            <span style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', color: 'white', flexShrink: 0 }}>
+              {(user.user_metadata?.full_name?.[0] || user.email?.[0] || '?').toUpperCase()}
+            </span>
+            {!collapsed && (
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontSize: '12px', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user.user_metadata?.full_name || user.email}</p>
+                <button onClick={signOut} style={{ fontSize: '11px', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }} className="hover:text-red-400">Sign out</button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Collapse toggle */}
       <div

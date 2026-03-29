@@ -1,21 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getPostById, updatePost, deletePost } from '@/lib/db';
+import { getAuthClient } from '@/lib/auth-helpers';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-export async function GET(_request: NextRequest, { params }: RouteContext) {
+export async function GET(request: NextRequest, { params }: RouteContext) {
   try {
+    const supabase = getAuthClient(request);
     const { id } = await params;
-    const post = await getPostById(id);
-    return NextResponse.json({ post }, { status: 200 });
+    const { data, error } = await supabase.from('posts').select('*').eq('id', id).single();
+    if (error) return NextResponse.json({ error: 'Post not found' }, { status: 404 });
+    return NextResponse.json({ post: data });
   } catch (error) {
     console.error('[GET /api/posts/[id]]', error);
-    return NextResponse.json({ error: 'Post not found' }, { status: 404 });
+    return NextResponse.json({ error: 'Failed to read post' }, { status: 500 });
   }
 }
 
 export async function PUT(request: NextRequest, { params }: RouteContext) {
   try {
+    const supabase = getAuthClient(request);
     const { id } = await params;
     const body = await request.json();
 
@@ -28,20 +31,22 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
     if (body.content !== undefined) updates.content = body.content;
     if (body.media !== undefined) updates.media = body.media;
 
-    const post = await updatePost(id, updates);
-    return NextResponse.json({ post }, { status: 200 });
+    const { data, error } = await supabase.from('posts').update(updates).eq('id', id).select().single();
+    if (error) throw error;
+    return NextResponse.json({ post: data });
   } catch (error) {
     console.error('[PUT /api/posts/[id]]', error);
     return NextResponse.json({ error: 'Failed to update post' }, { status: 500 });
   }
 }
 
-export async function DELETE(_request: NextRequest, { params }: RouteContext) {
+export async function DELETE(request: NextRequest, { params }: RouteContext) {
   try {
+    const supabase = getAuthClient(request);
     const { id } = await params;
-    const post = await getPostById(id);
-    await deletePost(id);
-    return NextResponse.json({ deleted: post }, { status: 200 });
+    const { error } = await supabase.from('posts').delete().eq('id', id);
+    if (error) throw error;
+    return NextResponse.json({ deleted: true });
   } catch (error) {
     console.error('[DELETE /api/posts/[id]]', error);
     return NextResponse.json({ error: 'Failed to delete post' }, { status: 500 });

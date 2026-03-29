@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { PLATFORMS } from '@/lib/platforms';
 import type { Platform } from '@/lib/types';
+import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
 
 interface Post {
   id: string;
@@ -41,7 +42,7 @@ export default function SchedulerPage() {
 
   const fetchPosts = useCallback(async () => {
     try {
-      const res = await fetch('/api/posts');
+      const res = await apiGet('/api/posts');
       const data = await res.json();
       setPosts(data.posts || []);
     } catch {} finally { setLoading(false); }
@@ -77,10 +78,10 @@ export default function SchedulerPage() {
     formPlatforms.forEach(p => { content[p] = { caption: formCaption, hashtags: [] }; });
     try {
       if (editingPost) {
-        await fetch(`/api/posts/${editingPost.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: formTitle, platforms: Array.from(formPlatforms), scheduledAt, status: asDraft ? 'draft' : 'scheduled', contentType: formType, content }) });
+        await apiPut(`/api/posts/${editingPost.id}`, { title: formTitle, platforms: Array.from(formPlatforms), scheduledAt, status: asDraft ? 'draft' : 'scheduled', contentType: formType, content });
         showToast('Post updated', 'success');
       } else {
-        await fetch('/api/posts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: formTitle, platforms: Array.from(formPlatforms), scheduledAt, status: asDraft ? 'draft' : 'scheduled', contentType: formType, content }) });
+        await apiPost('/api/posts', { title: formTitle, platforms: Array.from(formPlatforms), scheduledAt, status: asDraft ? 'draft' : 'scheduled', contentType: formType, content });
         showToast(asDraft ? 'Draft saved' : 'Post scheduled', 'success');
       }
       setShowModal(false); fetchPosts();
@@ -90,7 +91,7 @@ export default function SchedulerPage() {
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this post?')) return;
     try {
-      await fetch(`/api/posts/${id}`, { method: 'DELETE' });
+      await apiDelete(`/api/posts/${id}`);
       showToast('Post deleted', 'success');
       setSelectedPost(null); fetchPosts();
     } catch { showToast('Failed to delete', 'error'); }
@@ -98,7 +99,7 @@ export default function SchedulerPage() {
 
   const handleStatusChange = async (id: string, status: string) => {
     try {
-      await fetch(`/api/posts/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) });
+      await apiPut(`/api/posts/${id}`, { status });
       showToast(`Status: ${status}`, 'success'); fetchPosts();
     } catch { showToast('Failed to update', 'error'); }
   };

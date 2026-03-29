@@ -73,8 +73,6 @@ export async function resizeForAllPlatforms(
 ): Promise<ResizedImage[]> {
   const opts = { ...DEFAULT_OPTIONS, ...options };
   const targetPlatforms = platforms || (Object.keys(PLATFORM_SPECS) as Platform[]);
-  const results: ResizedImage[] = [];
-
   // Detect source orientation to pick best matching spec per platform
   const meta = await sharp(imageBuffer).metadata();
   const srcWidth = meta.width || 1;
@@ -82,26 +80,27 @@ export async function resizeForAllPlatforms(
   const srcRatio = srcWidth / srcHeight;
   const srcOrientation: Orientation = srcRatio > 1.1 ? 'landscape' : srcRatio < 0.9 ? 'portrait' : 'square';
 
-  for (const platform of targetPlatforms) {
+  // Run ALL resizes in parallel for maximum speed
+  const ext = opts.format === 'png' ? 'png' : opts.format === 'webp' ? 'webp' : 'jpg';
+  const tasks = targetPlatforms.flatMap(platform => {
     const specs = PLATFORM_SPECS[platform];
-    if (!specs) continue;
-
-    for (const spec of specs) {
-      const resized = await resizeImage(imageBuffer, spec, opts);
-
-      const ext = opts.format === 'png' ? 'png' : opts.format === 'webp' ? 'webp' : 'jpg';
-      results.push({
+    if (!specs) return [];
+    return specs.map(async (spec) => {
+      const buffer = await resizeImage(imageBuffer, spec, opts);
+      return {
         platform,
         spec: spec.name,
         orientation: spec.orientation,
         width: spec.width,
         height: spec.height,
-        buffer: resized,
-        sizeKB: Math.round(resized.length / 1024),
+        buffer,
+        sizeKB: Math.round(buffer.length / 1024),
         filename: `${platform}_${spec.name}_${spec.width}x${spec.height}.${ext}`,
-      });
-    }
-  }
+      } as ResizedImage;
+    });
+  });
+
+  const results = await Promise.all(tasks);
 
   // Sort: best match for source orientation first
   results.sort((a, b) => {

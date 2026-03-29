@@ -38,7 +38,7 @@ const SOCIAL_PLATFORMS = [
 const DATA_SOURCES = [
   { id: 'google-trends', name: 'Google Trends', icon: '📊', color: '#4285F4', status: 'active', description: 'Live search trend data — no API key needed. Auto-fetches hourly.' },
   { id: 'reddit', name: 'Reddit', icon: '🟠', color: '#FF4500', status: 'active', description: 'Popular posts from Reddit — public JSON endpoint. No API key needed.' },
-  { id: 'twitter-trends', name: 'Twitter/X Trends', icon: '𝕏', color: '#1DA1F2', status: 'fallback', description: 'Trending hashtags. Uses scraping with fallback to curated topics.' },
+  { id: 'twitter-trends', name: 'Twitter/X Trends', icon: '𝕏', color: '#1DA1F2', status: 'active', description: 'Trending hashtags scraped from live sources. No API key needed.' },
 ];
 
 interface Settings {
@@ -206,8 +206,8 @@ export default function SettingsPage() {
                 <div>
                   <div className="flex items-center gap-2">
                     <p className="text-[#f1f5f9] font-medium text-sm">{src.name}</p>
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${src.status === 'active' ? 'bg-[#22c55e]/10 text-[#22c55e]' : 'bg-amber-500/10 text-amber-400'}`}>
-                      {src.status === 'active' ? 'Active' : 'Fallback'}
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#22c55e]/10 text-[#22c55e]">
+                      Active
                     </span>
                   </div>
                   <p className="text-[#94a3b8] text-xs mt-0.5">{src.description}</p>
