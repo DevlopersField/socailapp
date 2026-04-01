@@ -1,27 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthClient } from '@/lib/auth-helpers';
+import { rateLimiters, rateLimitResponse } from '@/lib/rate-limit';
 
 export async function GET(request: NextRequest) {
   const supabase = getAuthClient(request);
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  if (!rateLimiters.read.check(user.id)) return rateLimitResponse() as unknown as NextResponse;
+
+  // Only return the active provider name — never disclose which server-side keys exist
   const provider = process.env.AI_PROVIDER || 'openrouter';
-  const hasKey = Boolean(
-    provider === 'openrouter'
-      ? process.env.OPENROUTER_API_KEY
-      : provider === 'openai'
-        ? process.env.OPENAI_API_KEY
-        : process.env.ANTHROPIC_API_KEY
-  );
 
   return NextResponse.json({
     provider,
-    hasKey,
-    availableProviders: [
-      { id: 'openrouter', name: 'OpenRouter', configured: Boolean(process.env.OPENROUTER_API_KEY) },
-      { id: 'openai', name: 'OpenAI', configured: Boolean(process.env.OPENAI_API_KEY) },
-      { id: 'anthropic', name: 'Anthropic (Claude)', configured: Boolean(process.env.ANTHROPIC_API_KEY) },
-    ],
+    note: 'Configure your AI provider and API key in Settings.',
   });
 }

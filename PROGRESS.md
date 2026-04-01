@@ -2,7 +2,32 @@
 
 ## 2026-04-01
 
-### Security Hardening + Full Audit
+### OAuth Login Flow — One-Click Platform Connection
+- Replaced manual token pasting with proper OAuth 2.0 "Login with X" flows
+- Created `src/lib/oauth-providers.ts` — OAuth config for 6 platforms (Instagram, LinkedIn, Pinterest, Reddit, Dribbble, Google)
+- Created `GET /api/auth/[platform]` — initiates OAuth redirect with CSRF state cookie
+- Created `GET /api/auth/[platform]/callback` — exchanges code for token, fetches profile, saves connection
+- Rewrote `/connect` page — colored "Connect with Instagram" buttons, toast notifications, no token paste
+- Updated `.env.local.example` — full template with Supabase, CRON_SECRET, and OAuth credentials for all 6 platforms
+- Flow: Click "Connect" → redirected to platform → login → authorize → redirected back → connected
+- Security: State parameter CSRF protection, httpOnly cookies, server-side token exchange
+- Key files: `src/lib/oauth-providers.ts`, `src/app/api/auth/[platform]/route.ts`, `src/app/api/auth/[platform]/callback/route.ts`
+
+### Production Security Hardening (Round 2)
+- Created shared rate limiter utility at `src/lib/rate-limit.ts` — 4 tiers: read (60/min), write (20/min), ai (10/5min), auth (5/min)
+- Added rate limiting to ALL 16 mutation endpoints (was only on 3)
+- Created CSRF protection middleware at `src/middleware.ts` — Origin/Referer validation on all POST/PUT/DELETE
+- Added security headers: X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, Referrer-Policy, Permissions-Policy
+- Split `supabase.ts` — moved `getServerSupabase` to `supabase-server.ts` with `import 'server-only'` guard
+- Added `import 'server-only'` to `ai-provider.ts` to prevent service role key leaking to client bundle
+- Fixed client-side API key testing — was sending keys directly to OpenRouter/OpenAI from browser; now proxied through `POST /api/user-settings/test`
+- Fixed connections GET/DELETE missing `user_id` filter (relied only on RLS, now defense-in-depth)
+- Fixed connections upsert conflict from `platform` to `user_id,platform` (prevents cross-user overwrites)
+- Removed server AI key disclosure from `brain/settings` (no longer reveals which env keys are set)
+- npm audit: 0 vulnerabilities
+- Key files: `src/lib/rate-limit.ts`, `src/lib/csrf.ts`, `src/middleware.ts`, `src/lib/supabase-server.ts`
+
+### Security Hardening + Full Audit (Round 1)
 - **CRITICAL**: Added auth (getUser + 401 guard) to 10 API handler methods that were fully unauthenticated
   - `analytics GET`, `connections GET/DELETE`, `posts GET`, `posts/[id] GET/PUT/DELETE`, `schedule GET`, `packages POST`, `brain/settings GET`
 - **CRITICAL**: Fixed path traversal vulnerability in `automate` + `brain` routes — file extension extracted from `Content-Type` was unsanitized, allowing `../../` in filenames

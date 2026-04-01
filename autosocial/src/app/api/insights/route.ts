@@ -1,22 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthClient } from '@/lib/auth-helpers';
-
-// Rate limiting: track requests per user
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-const RATE_LIMIT = 30; // requests per window
-const RATE_WINDOW = 60_000; // 1 minute
-
-function checkRateLimit(userId: string): boolean {
-  const now = Date.now();
-  const entry = rateLimitMap.get(userId);
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(userId, { count: 1, resetAt: now + RATE_WINDOW });
-    return true;
-  }
-  if (entry.count >= RATE_LIMIT) return false;
-  entry.count++;
-  return true;
-}
+import { rateLimiters, rateLimitResponse } from '@/lib/rate-limit';
 
 // Allowed values for input validation
 const VALID_RANGES = ['7d', '30d', '90d', 'all'] as const;
@@ -32,9 +16,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Rate limit
-    if (!checkRateLimit(user.id)) {
-      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
-    }
+    if (!rateLimiters.read.check(user.id)) return rateLimitResponse() as unknown as NextResponse;
 
     // Validate query params
     const { searchParams } = new URL(request.url);

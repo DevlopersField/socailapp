@@ -3,7 +3,8 @@
     "allow": [
       "Bash(npm run:*)",
       "Skill(superpowers)",
-      "Skill(superpowers:*)"
+      "Skill(superpowers:*)",
+      "Bash(npx next:*)"
     ]
   }
 }

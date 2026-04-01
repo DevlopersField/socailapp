@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthClient } from '@/lib/auth-helpers';
 import { PLATFORMS } from '@/lib/platforms';
+import { rateLimiters, rateLimitResponse } from '@/lib/rate-limit';
 
 export async function POST(request: NextRequest) {
   try {
     const supabase = getAuthClient(request);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    if (!rateLimiters.write.check(user.id)) return rateLimitResponse() as unknown as NextResponse;
 
     const body = await request.json();
     const { postIds, platforms, include } = body;

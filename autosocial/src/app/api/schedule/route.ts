@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthClient } from '@/lib/auth-helpers';
+import { rateLimiters, rateLimitResponse } from '@/lib/rate-limit';
 
 export async function GET(request: NextRequest) {
   try {
@@ -39,6 +40,8 @@ export async function POST(request: NextRequest) {
     const supabase = getAuthClient(request);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    if (!rateLimiters.write.check(user.id)) return rateLimitResponse() as unknown as NextResponse;
 
     const { postId, scheduledAt } = await request.json();
     if (!postId || !scheduledAt) return NextResponse.json({ error: 'postId and scheduledAt required' }, { status: 400 });

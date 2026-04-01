@@ -118,26 +118,17 @@ export default function SettingsPage() {
       return;
     }
 
+    // If no new key entered, check if saved key exists
+    if (!key) {
+      setTestResult(prev => ({ ...prev, [providerId]: settings?.[`has_${providerId}_key` as keyof UserSettings] ? 'success' : 'error' }));
+      return;
+    }
+
+    // Validate through server-side proxy — never send keys to third-party from browser
     try {
-      if (providerId === 'openrouter') {
-        const testKey = key || 'saved';
-        // If using saved key, test by calling our own API
-        if (!key) {
-          setTestResult(prev => ({ ...prev, [providerId]: settings?.has_openrouter_key ? 'success' : 'error' }));
-          return;
-        }
-        const res = await fetch('https://openrouter.ai/api/v1/auth/key', {
-          headers: { Authorization: `Bearer ${testKey}` },
-        });
-        setTestResult(prev => ({ ...prev, [providerId]: res.ok ? 'success' : 'error' }));
-      } else if (providerId === 'openai') {
-        const res = await fetch('https://api.openai.com/v1/models', {
-          headers: { Authorization: `Bearer ${key}` },
-        });
-        setTestResult(prev => ({ ...prev, [providerId]: res.ok ? 'success' : 'error' }));
-      } else {
-        setTestResult(prev => ({ ...prev, [providerId]: key.startsWith('sk-ant-') ? 'success' : 'error' }));
-      }
+      const res = await apiPost('/api/user-settings/test', { provider: providerId, apiKey: key });
+      const data = await res.json();
+      setTestResult(prev => ({ ...prev, [providerId]: data.valid ? 'success' : 'error' }));
     } catch {
       setTestResult(prev => ({ ...prev, [providerId]: 'error' }));
     }

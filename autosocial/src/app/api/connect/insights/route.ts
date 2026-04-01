@@ -1,20 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthClient } from '@/lib/auth-helpers';
-
-// Rate limiting
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-
-function checkRateLimit(userId: string): boolean {
-  const now = Date.now();
-  const entry = rateLimitMap.get(userId);
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(userId, { count: 1, resetAt: now + 60_000 });
-    return true;
-  }
-  if (entry.count >= 20) return false;
-  entry.count++;
-  return true;
-}
+import { rateLimiters, rateLimitResponse } from '@/lib/rate-limit';
 
 const VALID_PLATFORMS = ['instagram', 'linkedin', 'twitter', 'pinterest', 'dribbble', 'gmb'] as const;
 
@@ -51,9 +37,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (!checkRateLimit(user.id)) {
-      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
-    }
+    if (!rateLimiters.read.check(user.id)) return rateLimitResponse() as unknown as NextResponse;
 
     // Validate platform param
     const { searchParams } = new URL(request.url);

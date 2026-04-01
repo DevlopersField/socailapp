@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthClient } from '@/lib/auth-helpers';
+import { rateLimiters, rateLimitResponse } from '@/lib/rate-limit';
 
 const VALID_PLATFORMS = ['instagram', 'linkedin', 'twitter', 'pinterest', 'dribbble', 'gmb', 'reddit'] as const;
 const VALID_STATUSES = ['connected', 'expired', 'disconnected'] as const;
@@ -10,7 +11,13 @@ export async function GET(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { data, error } = await supabase.from('platform_connections').select('platform, account_name, account_id, status, connected_at, token_expires_at');
+    if (!rateLimiters.read.check(user.id)) return rateLimitResponse() as unknown as NextResponse;
+
+    // Always filter by user_id even with RLS as defense-in-depth
+    const { data, error } = await supabase
+      .from('platform_connections')
+      .select('platform, account_name, account_id, status, connected_at, token_expires_at')
+      .eq('user_id', user.id);
     if (error) throw error;
     return NextResponse.json({ connections: data || [] });
   } catch (error) {
@@ -24,6 +31,8 @@ export async function POST(request: NextRequest) {
     const supabase = getAuthClient(request);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    if (!rateLimiters.write.check(user.id)) return rateLimitResponse() as unknown as NextResponse;
 
     const body = await request.json();
 
@@ -43,6 +52,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'access_token is required' }, { status: 400 });
     }
 
+    // Upsert scoped to user_id + platform
     const { data, error } = await supabase.from('platform_connections').upsert({
       user_id: user.id,
       platform: body.platform,
@@ -52,7 +62,7 @@ export async function POST(request: NextRequest) {
       account_name: body.account_name ?? null,
       account_id: body.account_id ?? null,
       status,
-    }, { onConflict: 'platform' }).select('platform, account_name, account_id, status, connected_at').single();
+    }, { onConflict: 'user_id,platform' }).select('platform, account_name, account_id, status, connected_at').single();
 
     if (error) throw error;
     return NextResponse.json({ connection: data });
@@ -68,12 +78,15 @@ export async function DELETE(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+    if (!rateLimiters.write.check(user.id)) return rateLimitResponse() as unknown as NextResponse;
+
     const platform = new URL(request.url).searchParams.get('platform');
     if (!platform || !VALID_PLATFORMS.includes(platform as typeof VALID_PLATFORMS[number])) {
       return NextResponse.json({ error: `Invalid platform. Must be one of: ${VALID_PLATFORMS.join(', ')}` }, { status: 400 });
     }
 
-    await supabase.from('platform_connections').delete().eq('platform', platform);
+    // Filter by user_id to prevent cross-user deletion
+    await supabase.from('platform_connections').delete().eq('platform', platform).eq('user_id', user.id);
     return NextResponse.json({ deleted: true });
   } catch (error) {
     console.error('[DELETE /api/connections]', error);

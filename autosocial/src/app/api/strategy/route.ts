@@ -1,23 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthClient } from '@/lib/auth-helpers';
 import { getUserAIConfig } from '@/lib/ai-provider';
-
-// Rate limiting for strategy generation (expensive AI calls)
-const strategyRateMap = new Map<string, { count: number; resetAt: number }>();
-const STRATEGY_RATE_LIMIT = 10; // per window
-const STRATEGY_RATE_WINDOW = 300_000; // 5 minutes
-
-function checkStrategyRate(userId: string): boolean {
-  const now = Date.now();
-  const entry = strategyRateMap.get(userId);
-  if (!entry || now > entry.resetAt) {
-    strategyRateMap.set(userId, { count: 1, resetAt: now + STRATEGY_RATE_WINDOW });
-    return true;
-  }
-  if (entry.count >= STRATEGY_RATE_LIMIT) return false;
-  entry.count++;
-  return true;
-}
+import { rateLimiters, rateLimitResponse } from '@/lib/rate-limit';
 
 // Input validation schemas
 const VALID_GOALS = ['growth', 'engagement', 'brand-awareness', 'traffic', 'leads'] as const;
@@ -33,10 +17,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Rate limit
-    if (!checkStrategyRate(user.id)) {
-      return NextResponse.json({ error: 'Too many strategy requests. Wait 5 minutes.' }, { status: 429 });
-    }
+    // Rate limit (AI calls are expensive)
+    if (!rateLimiters.ai.check(user.id)) return rateLimitResponse() as unknown as NextResponse;
 
     // Parse and validate body
     let body: Record<string, unknown>;

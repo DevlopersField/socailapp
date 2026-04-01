@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthClient } from '@/lib/auth-helpers';
+import { rateLimiters, rateLimitResponse } from '@/lib/rate-limit';
 
 const VALID_PLATFORMS = ['instagram', 'linkedin', 'twitter', 'pinterest', 'dribbble', 'gmb'] as const;
 const VALID_STATUSES = ['draft', 'scheduled', 'published', 'failed'] as const;
@@ -45,6 +46,8 @@ export async function POST(request: NextRequest) {
     const supabase = getAuthClient(request);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    if (!rateLimiters.write.check(user.id)) return rateLimitResponse() as unknown as NextResponse;
 
     const body = await request.json();
     const { title, platforms, scheduledAt, status, contentType, content, media } = body;
