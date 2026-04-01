@@ -17,19 +17,10 @@ const MODELS = [
   { value: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4', provider: 'anthropic' },
 ];
 
-const PLATFORMS = [
-  { id: 'instagram', name: 'Instagram', icon: '📸', color: '#E4405F', authUrl: 'https://developers.facebook.com/apps/', guide: 'Requires Facebook Developer app with Instagram Graph API' },
-  { id: 'linkedin', name: 'LinkedIn', icon: '💼', color: '#0A66C2', authUrl: 'https://www.linkedin.com/developers/apps', guide: 'Create app → request Marketing APIs' },
-  { id: 'twitter', name: 'Twitter/X', icon: '𝕏', color: '#1DA1F2', authUrl: 'https://developer.x.com/en/portal/dashboard', guide: 'Create project with OAuth 2.0' },
-  { id: 'pinterest', name: 'Pinterest', icon: '📌', color: '#BD081C', authUrl: 'https://developers.pinterest.com/apps/', guide: 'Create app → get sandbox token' },
-  { id: 'dribbble', name: 'Dribbble', icon: '🏀', color: '#EA4C89', authUrl: 'https://dribbble.com/account/applications', guide: 'Register application → get token' },
-  { id: 'gmb', name: 'Google My Business', icon: '📍', color: '#4285F4', authUrl: 'https://console.cloud.google.com', guide: 'Enable Business Profile API → OAuth credentials' },
-];
-
 const DATA_SOURCES = [
-  { name: 'Google Trends', icon: '📊', color: '#4285F4', description: 'Live search trends — no API key needed' },
+  { name: 'Pinterest Trends', icon: '📌', color: '#BD081C', description: 'Trending pins and searches — live scraping' },
+  { name: 'Instagram Trends', icon: '📸', color: '#E4405F', description: 'Trending topics via Google Trends + IG mapping' },
   { name: 'Reddit', icon: '🟠', color: '#FF4500', description: 'Popular posts — public JSON endpoint' },
-  { name: 'Twitter/X Trends', icon: '𝕏', color: '#1DA1F2', description: 'Trending hashtags via scraping' },
 ];
 
 interface UserSettings {
@@ -61,8 +52,6 @@ export default function SettingsPage() {
   const [bgColor, setBgColor] = useState('#000000');
   const [format, setFormat] = useState('jpeg');
   const [quality, setQuality] = useState(90);
-  const [connectingPlatform, setConnectingPlatform] = useState<string | null>(null);
-  const [tokenInput, setTokenInput] = useState('');
   const [platformTokens, setPlatformTokens] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
@@ -152,19 +141,6 @@ export default function SettingsPage() {
     } catch {
       setTestResult(prev => ({ ...prev, [providerId]: 'error' }));
     }
-  };
-
-  const savePlatformToken = async (platformId: string) => {
-    if (!tokenInput.trim()) return;
-    await apiPost('/api/connections', { platform: platformId, access_token: tokenInput.trim(), status: 'connected' });
-    setPlatformTokens(prev => ({ ...prev, [platformId]: true }));
-    setTokenInput('');
-    setConnectingPlatform(null);
-  };
-
-  const disconnectPlatform = async (platformId: string) => {
-    await fetch(`/api/connections?platform=${platformId}`, { method: 'DELETE' });
-    setPlatformTokens(prev => { const n = { ...prev }; delete n[platformId]; return n; });
   };
 
   if (loading) {
@@ -268,46 +244,16 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Platform Connections */}
+      {/* Platform Connections — managed in /connect */}
       <div className="bg-[#1a1b2e] rounded-xl border border-[#2a2b3e] p-5">
-        <h2 className="text-lg font-semibold text-[#f1f5f9] mb-4">Platform Connections</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {PLATFORMS.map(platform => {
-            const isConnected = platformTokens[platform.id];
-            const isConnecting = connectingPlatform === platform.id;
-            return (
-              <div key={platform.id} className="p-4 bg-[#12131e] rounded-lg border border-[#2a2b3e] relative overflow-hidden">
-                <div className="absolute left-0 top-0 bottom-0 w-1" style={{ backgroundColor: platform.color }} />
-                <div className="flex items-center gap-3 mb-3 pl-2">
-                  <span className="text-xl">{platform.icon}</span>
-                  <div>
-                    <p className="text-[#f1f5f9] font-medium text-sm">{platform.name}</p>
-                    <span className={`text-xs ${isConnected ? 'text-[#22c55e]' : 'text-[#64748b]'}`}>{isConnected ? '● Connected' : '○ Not connected'}</span>
-                  </div>
-                </div>
-                <div className="pl-2 space-y-2">
-                  {isConnecting ? (
-                    <>
-                      <p className="text-[#94a3b8] text-xs">{platform.guide}</p>
-                      <a href={platform.authUrl} target="_blank" rel="noopener noreferrer" className="block text-xs text-[#6366f1] hover:underline">Open Developer Portal →</a>
-                      <input type="password" value={tokenInput} onChange={e => setTokenInput(e.target.value)} placeholder="Paste access token..." className="w-full bg-[#0a0b14] border border-[#2a2b3e] text-[#f1f5f9] rounded-lg p-2 text-xs" />
-                      <div className="flex gap-2">
-                        <button onClick={() => savePlatformToken(platform.id)} className="flex-1 px-3 py-1.5 bg-[#6366f1] text-white rounded-lg text-xs">Save</button>
-                        <button onClick={() => { setConnectingPlatform(null); setTokenInput(''); }} className="px-3 py-1.5 bg-[#2a2b3e] text-[#94a3b8] rounded-lg text-xs">Cancel</button>
-                      </div>
-                    </>
-                  ) : isConnected ? (
-                    <>
-                      <p className="text-[#22c55e] text-xs">Ready for auto-publishing</p>
-                      <button onClick={() => disconnectPlatform(platform.id)} className="w-full px-3 py-1.5 bg-red-500/10 text-red-400 rounded-lg text-xs">Disconnect</button>
-                    </>
-                  ) : (
-                    <button onClick={() => { setConnectingPlatform(platform.id); setTokenInput(''); }} className="w-full px-3 py-2 bg-[#1a1b2e] border border-[#2a2b3e] text-[#94a3b8] rounded-lg text-xs hover:border-[#6366f1]/30">Connect</button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-[#f1f5f9]">Platform Connections</h2>
+            <p className="text-[#94a3b8] text-xs mt-1">Connect and manage all your social media accounts</p>
+          </div>
+          <a href="/connect" className="px-4 py-2 bg-[#6366f1] hover:bg-[#4f46e5] text-white text-sm font-medium rounded-lg transition-colors">
+            Manage Connections →
+          </a>
         </div>
       </div>
 

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 
 interface Trend {
   id: string;
-  source: 'google' | 'reddit' | 'twitter';
+  source: 'pinterest' | 'instagram' | 'reddit';
   keyword: string;
   volume: number | null;
   trend_score: number;
@@ -13,13 +13,13 @@ interface Trend {
   fetched_at: string;
 }
 
-const SOURCE_CONFIG = {
-  google: { name: 'Google Trends', icon: '🔍', color: '#4285F4', bg: 'bg-blue-500/10' },
+const SOURCE_CONFIG: Record<string, { name: string; icon: string; color: string; bg: string }> = {
+  pinterest: { name: 'Pinterest', icon: '📌', color: '#BD081C', bg: 'bg-red-500/10' },
+  instagram: { name: 'Instagram', icon: '📸', color: '#E4405F', bg: 'bg-pink-500/10' },
   reddit: { name: 'Reddit', icon: '🟠', color: '#FF4500', bg: 'bg-orange-500/10' },
-  twitter: { name: 'Twitter/X', icon: '𝕏', color: '#1DA1F2', bg: 'bg-sky-500/10' },
 };
 
-type SourceFilter = 'all' | 'google' | 'reddit' | 'twitter';
+type SourceFilter = 'all' | 'pinterest' | 'instagram' | 'reddit';
 
 export default function TrendsPage() {
   const [trends, setTrends] = useState<Trend[]>([]);
@@ -67,9 +67,9 @@ export default function TrendsPage() {
 
   const sourceCounts = {
     all: trends.length,
-    google: trends.filter(t => t.source === 'google').length,
+    pinterest: trends.filter(t => t.source === 'pinterest').length,
+    instagram: trends.filter(t => t.source === 'instagram').length,
     reddit: trends.filter(t => t.source === 'reddit').length,
-    twitter: trends.filter(t => t.source === 'twitter').length,
   };
 
   const copyTopic = (trend: Trend) => {
@@ -81,7 +81,7 @@ export default function TrendsPage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <div><h1 className="text-2xl font-bold text-[#f1f5f9]">📈 Trending Now</h1></div>
+        <div><h1 className="text-2xl font-bold text-[#f1f5f9]">Trending Now</h1></div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="bg-[#1a1b2e] rounded-xl border border-[#2a2b3e] p-5 h-24 animate-pulse" />
@@ -96,9 +96,9 @@ export default function TrendsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[#f1f5f9]">📈 Trending Now</h1>
+          <h1 className="text-2xl font-bold text-[#f1f5f9]">Trending Now</h1>
           <p className="text-[#94a3b8] text-sm mt-1">
-            Live trends from Google, Reddit, and X — {lastUpdated ? `updated ${new Date(lastUpdated).toLocaleTimeString()}` : 'loading...'}
+            Live trends from Pinterest, Instagram, and Reddit — {lastUpdated ? `updated ${new Date(lastUpdated).toLocaleTimeString()}` : 'loading...'}
           </p>
         </div>
         <button
@@ -106,14 +106,14 @@ export default function TrendsPage() {
           disabled={refreshing}
           className="px-4 py-2 bg-[#6366f1] hover:bg-[#4f46e5] disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
         >
-          {refreshing ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : '🔄'}
+          {refreshing ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : null}
           Refresh
         </button>
       </div>
 
       {/* Source Filter Tabs */}
-      <div className="flex gap-2">
-        {(['all', 'google', 'reddit', 'twitter'] as const).map(src => (
+      <div className="flex gap-2 flex-wrap">
+        {(['all', 'pinterest', 'instagram', 'reddit'] as const).map(src => (
           <button
             key={src}
             onClick={() => setFilter(src)}
@@ -122,7 +122,7 @@ export default function TrendsPage() {
             }`}
           >
             <span>{src === 'all' ? '🌐' : SOURCE_CONFIG[src].icon}</span>
-            <span className="capitalize">{src === 'all' ? 'All Sources' : SOURCE_CONFIG[src].name}</span>
+            <span>{src === 'all' ? 'All Sources' : SOURCE_CONFIG[src].name}</span>
             <span className="text-xs opacity-60">({sourceCounts[src]})</span>
           </button>
         ))}
@@ -133,7 +133,7 @@ export default function TrendsPage() {
         {/* Trending Topics List */}
         <div className="lg:col-span-2 space-y-2">
           {filtered.map((trend, i) => {
-            const src = SOURCE_CONFIG[trend.source];
+            const src = SOURCE_CONFIG[trend.source] || { name: trend.source, icon: '📊', color: '#6366f1', bg: 'bg-indigo-500/10' };
             const isSelected = selectedTrend?.id === trend.id;
             return (
               <div
@@ -184,9 +184,8 @@ export default function TrendsPage() {
 
           {filtered.length === 0 && (
             <div className="text-center p-10 bg-[#1a1b2e] rounded-xl border border-[#2a2b3e]">
-              <span className="text-4xl block mb-3">📡</span>
-              <p className="text-[#f1f5f9] font-medium mb-1">Fetching trends...</p>
-              <p className="text-[#94a3b8] text-sm mb-4">We&apos;re pulling the latest data from Google, Reddit, and X.</p>
+              <p className="text-[#f1f5f9] font-medium mb-1">No trends available</p>
+              <p className="text-[#94a3b8] text-sm mb-4">Click Refresh to fetch the latest from Pinterest, Instagram, and Reddit.</p>
               <button onClick={refreshTrends} disabled={refreshing} className="px-4 py-2 bg-[#6366f1] hover:bg-[#4f46e5] text-white text-sm rounded-lg transition-colors">
                 {refreshing ? 'Loading...' : 'Fetch Now'}
               </button>
@@ -204,9 +203,11 @@ export default function TrendsPage() {
                 <div>
                   <p className="text-[#f1f5f9] font-medium">{selectedTrend.keyword}</p>
                   <div className="flex items-center gap-2 mt-1">
-                    <span className="text-xs" style={{ color: SOURCE_CONFIG[selectedTrend.source].color }}>
-                      {SOURCE_CONFIG[selectedTrend.source].icon} {SOURCE_CONFIG[selectedTrend.source].name}
-                    </span>
+                    {SOURCE_CONFIG[selectedTrend.source] && (
+                      <span className="text-xs" style={{ color: SOURCE_CONFIG[selectedTrend.source].color }}>
+                        {SOURCE_CONFIG[selectedTrend.source].icon} {SOURCE_CONFIG[selectedTrend.source].name}
+                      </span>
+                    )}
                     {selectedTrend.category && (
                       <span className="text-xs text-[#94a3b8]">{selectedTrend.category}</span>
                     )}
@@ -264,7 +265,7 @@ export default function TrendsPage() {
           <div className="bg-[#1a1b2e] rounded-xl border border-[#2a2b3e] p-5">
             <h3 className="text-sm font-semibold text-[#f1f5f9] mb-3">Source Distribution</h3>
             <div className="space-y-3">
-              {(['google', 'reddit', 'twitter'] as const).map(src => {
+              {(['pinterest', 'instagram', 'reddit'] as const).map(src => {
                 const count = sourceCounts[src];
                 const total = trends.length || 1;
                 const cfg = SOURCE_CONFIG[src];

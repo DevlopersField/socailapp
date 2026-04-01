@@ -1,6 +1,11 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { getAuthClient } from '@/lib/auth-helpers';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const supabase = getAuthClient(request);
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   const provider = process.env.AI_PROVIDER || 'openrouter';
   const hasKey = Boolean(
     provider === 'openrouter'

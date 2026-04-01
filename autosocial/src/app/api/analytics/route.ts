@@ -4,6 +4,9 @@ import { getAuthClient } from '@/lib/auth-helpers';
 export async function GET(request: NextRequest) {
   try {
     const supabase = getAuthClient(request);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const { data: entries, error } = await supabase.from('analytics').select('*').order('published_at', { ascending: false });
     if (error) throw error;
 

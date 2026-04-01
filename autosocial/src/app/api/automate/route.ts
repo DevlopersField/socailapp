@@ -18,6 +18,12 @@ export async function POST(request: NextRequest) {
     const autoSchedule = formData.get('autoSchedule') !== 'false';
 
     if (!file) return NextResponse.json({ error: 'No image provided' }, { status: 400 });
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (!allowedTypes.includes(file.type)) {
+      return NextResponse.json({ error: 'Unsupported image type. Use JPEG, PNG, WebP, or GIF.' }, { status: 400 });
+    }
+
     if (file.size > 10 * 1024 * 1024) return NextResponse.json({ error: 'Image too large (max 10MB)' }, { status: 400 });
 
     const arrayBuffer = await file.arrayBuffer();
@@ -41,7 +47,8 @@ export async function POST(request: NextRequest) {
     const savePromises = resizedImages.map(img =>
       writeFile(path.join(outputDir, img.filename), img.buffer)
     );
-    savePromises.push(writeFile(path.join(outputDir, `original.${file.type.split('/')[1] || 'jpg'}`), imageBuffer));
+    const rawExt = (file.type.split('/')[1] || 'jpg').replace(/[^a-z0-9]/gi, '').slice(0, 10) || 'jpg';
+    savePromises.push(writeFile(path.join(outputDir, `original.${rawExt}`), imageBuffer));
     await Promise.all(savePromises);
 
     const savedImages = resizedImages.map(img => ({
@@ -112,6 +119,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('[POST /api/automate]', error);
-    return NextResponse.json({ error: String(error), details: 'Automation pipeline failed' }, { status: 500 });
+    return NextResponse.json({ error: 'Automation pipeline failed' }, { status: 500 });
   }
 }

@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getPosts } from '@/lib/db';
+import { getAuthClient } from '@/lib/auth-helpers';
 import { PLATFORMS } from '@/lib/platforms';
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = getAuthClient(request);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
     const body = await request.json();
     const { postIds, platforms, include } = body;
 
@@ -11,8 +15,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'postIds must be a non-empty array' }, { status: 400 });
     }
 
-    const allPosts = await getPosts();
-    const posts = allPosts.filter(p => postIds.includes(p.id));
+    // Validate postIds are strings
+    if (!postIds.every((id: unknown) => typeof id === 'string')) {
+      return NextResponse.json({ error: 'postIds must be an array of strings' }, { status: 400 });
+    }
+
+    const { data: allPosts, error } = await supabase.from('posts').select('*').order('scheduled_at', { ascending: true });
+    if (error) throw error;
+
+    const posts = (allPosts || []).filter(p => postIds.includes(p.id));
 
     const packages = posts.flatMap(post => {
       const targetPlatforms = platforms

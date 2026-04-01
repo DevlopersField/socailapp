@@ -1,5 +1,41 @@
 # Progress Log
 
+## 2026-04-01
+
+### Security Hardening + Full Audit
+- **CRITICAL**: Added auth (getUser + 401 guard) to 10 API handler methods that were fully unauthenticated
+  - `analytics GET`, `connections GET/DELETE`, `posts GET`, `posts/[id] GET/PUT/DELETE`, `schedule GET`, `packages POST`, `brain/settings GET`
+- **CRITICAL**: Fixed path traversal vulnerability in `automate` + `brain` routes — file extension extracted from `Content-Type` was unsanitized, allowing `../../` in filenames
+- **CRITICAL**: Secured `scheduler/process` with CRON_SECRET bearer token (was fully open)
+- Added platform allowlist validation to `connections`, `posts`, `posts/[id]` routes
+- Added status/contentType/date validation to `posts POST`, `posts/[id] PUT`, `schedule POST`
+- Added MIME type allowlist to `automate` route (was missing, `brain` already had it)
+- Removed `details: String(error)` from 4 routes that leaked server internals to client
+- Connections GET now returns safe fields only (no access_token/refresh_token in response)
+- Key files: all 15 API route files in `src/app/api/`
+
+### Insights & Strategy Hub
+- Created `/insights` page with 3 tabs: Performance (deep analytics), Trends (live), Strategy (AI-generated)
+- Created `/api/insights` — authenticated deep analytics with rate limiting (30 req/min), platform/content/hashtag/time analysis
+- Created `/api/strategy` — AI strategy generator with rate limiting (10 req/5min), feeds analytics data + trends into AI for data-driven weekly plans
+- Updated `/api/trends` — replaced Twitter/Google with Pinterest + Instagram + Reddit (all dynamic, no static fallbacks)
+- Key files: `src/app/insights/page.tsx`, `src/app/api/insights/route.ts`, `src/app/api/strategy/route.ts`
+
+### Buffer/Hootsuite-Style Connect Hub
+- Created `/connect` page — full platform connection manager with live account insights
+- Created `/api/connect/insights` — hits real platform APIs (Instagram Graph, Pinterest v5, LinkedIn, Dribbble) for live data
+- 6 platforms: Instagram, LinkedIn, Pinterest, Dribbble, Google My Business, Reddit
+- Shows live API insights + internal analytics overlay per platform
+- Token expiry warnings, expandable detail panels, disconnect/reconnect
+- Key files: `src/app/connect/page.tsx`, `src/app/api/connect/insights/route.ts`
+
+### Duplicate Removal + Navigation Cleanup
+- Removed standalone `/analytics` page (replaced with redirect to `/insights`)
+- Removed Platform Connections section from Settings (replaced with link to `/connect`)
+- Cleaned unused state/functions from Settings component
+- Removed "Analytics" and "Trends" from Sidebar (both are tabs inside Insights now)
+- Final navigation: Dashboard → Brain → Insights → Connect → Scheduler → Packages → Guides → Settings (8 items, was 10)
+
 ## 2026-03-29
 
 ### 02:00 — Guides Page + Human-Friendly UX

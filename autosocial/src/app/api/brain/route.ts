@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Save original
-    const originalExt = file.type.split('/')[1] || 'jpg';
+    const originalExt = (file.type.split('/')[1] || 'jpg').replace(/[^a-z0-9]/gi, '').slice(0, 10) || 'jpg';
     const originalPath = path.join(outputDir, `original.${originalExt}`);
     await writeFile(originalPath, imageBuffer);
 
@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('[POST /api/brain]', error);
     return NextResponse.json(
-      { error: 'Brain processing failed', details: String(error) },
+      { error: 'Brain processing failed' },
       { status: 500 }
     );
   }

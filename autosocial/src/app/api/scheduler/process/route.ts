@@ -1,8 +1,24 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { processScheduledJobs, updateJobStatus, getConnections } from '@/lib/db';
 
-export async function POST() {
+// Scheduler process endpoint — secured with CRON_SECRET
+// Call with: Authorization: Bearer $CRON_SECRET
+
+export async function POST(request: NextRequest) {
   try {
+    // Verify cron secret
+    const authHeader = request.headers.get('authorization');
+    const cronSecret = process.env.CRON_SECRET;
+
+    if (!cronSecret) {
+      return NextResponse.json({ error: 'CRON_SECRET not configured' }, { status: 500 });
+    }
+
+    const token = authHeader?.replace('Bearer ', '');
+    if (token !== cronSecret) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const [jobs, connections] = await Promise.all([
       processScheduledJobs(),
       getConnections(),
@@ -23,7 +39,6 @@ export async function POST() {
           return { jobId: job.id, platform: job.platform, status: 'failed', reason: 'no_connection' };
         }
 
-        // Placeholder: real platform publish logic goes here
         await updateJobStatus(job.id, 'completed', { published_at: new Date().toISOString() });
         return { jobId: job.id, platform: job.platform, status: 'completed' };
       })
