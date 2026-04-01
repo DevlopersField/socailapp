@@ -33,14 +33,16 @@ create table if not exists analytics (
 -- Platform connections
 create table if not exists platform_connections (
   id uuid primary key default uuid_generate_v4(),
-  platform text not null unique,
+  user_id uuid not null,
+  platform text not null,
   access_token text not null,
   refresh_token text,
   token_expires_at timestamptz,
   account_name text,
   account_id text,
   connected_at timestamptz not null default now(),
-  status text not null default 'connected' check (status in ('connected', 'expired', 'disconnected'))
+  status text not null default 'connected' check (status in ('connected', 'expired', 'disconnected')),
+  unique(user_id, platform)
 );
 
 -- Trends cache

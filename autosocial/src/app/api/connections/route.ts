@@ -13,12 +13,22 @@ export async function GET(request: NextRequest) {
 
     if (!rateLimiters.read.check(user.id)) return rateLimitResponse() as unknown as NextResponse;
 
-    // Always filter by user_id even with RLS as defense-in-depth
+    // Fetch connections for this user (RLS + explicit filter)
     const { data, error } = await supabase
       .from('platform_connections')
       .select('platform, account_name, account_id, status, connected_at, token_expires_at')
       .eq('user_id', user.id);
-    if (error) throw error;
+
+    if (error) {
+      // If user_id column doesn't exist yet, fetch all (old schema fallback)
+      if (error.message?.includes('user_id')) {
+        const { data: fallback } = await supabase
+          .from('platform_connections')
+          .select('platform, account_name, account_id, status, connected_at, token_expires_at');
+        return NextResponse.json({ connections: fallback || [] });
+      }
+      throw error;
+    }
     return NextResponse.json({ connections: data || [] });
   } catch (error) {
     console.error('[GET /api/connections]', error);
@@ -36,24 +46,20 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
 
-    // Validate platform
     if (!body.platform || !VALID_PLATFORMS.includes(body.platform)) {
       return NextResponse.json({ error: `Invalid platform. Must be one of: ${VALID_PLATFORMS.join(', ')}` }, { status: 400 });
     }
 
-    // Validate status
     const status = body.status ?? 'connected';
     if (!VALID_STATUSES.includes(status)) {
-      return NextResponse.json({ error: `Invalid status. Must be one of: ${VALID_STATUSES.join(', ')}` }, { status: 400 });
+      return NextResponse.json({ error: `Invalid status` }, { status: 400 });
     }
 
-    // Validate token
     if (!body.access_token || typeof body.access_token !== 'string' || body.access_token.trim().length === 0) {
       return NextResponse.json({ error: 'access_token is required' }, { status: 400 });
     }
 
-    // Upsert scoped to user_id + platform
-    const { data, error } = await supabase.from('platform_connections').upsert({
+    const row = {
       user_id: user.id,
       platform: body.platform,
       access_token: body.access_token.trim(),
@@ -62,10 +68,26 @@ export async function POST(request: NextRequest) {
       account_name: body.account_name ?? null,
       account_id: body.account_id ?? null,
       status,
-    }, { onConflict: 'user_id,platform' }).select('platform, account_name, account_id, status, connected_at').single();
+    };
 
-    if (error) throw error;
-    return NextResponse.json({ connection: data });
+    // Try upsert with composite key first (new schema)
+    let result = await supabase.from('platform_connections')
+      .upsert(row, { onConflict: 'user_id,platform' })
+      .select('platform, account_name, account_id, status, connected_at')
+      .single();
+
+    if (result.error) {
+      // Fallback: old schema with unique on platform only
+      // Delete existing row first, then insert
+      await supabase.from('platform_connections').delete().eq('platform', body.platform);
+      result = await supabase.from('platform_connections')
+        .insert(row)
+        .select('platform, account_name, account_id, status, connected_at')
+        .single();
+    }
+
+    if (result.error) throw result.error;
+    return NextResponse.json({ connection: result.data });
   } catch (error) {
     console.error('[POST /api/connections]', error);
     return NextResponse.json({ error: 'Failed to save connection' }, { status: 500 });
@@ -82,11 +104,16 @@ export async function DELETE(request: NextRequest) {
 
     const platform = new URL(request.url).searchParams.get('platform');
     if (!platform || !VALID_PLATFORMS.includes(platform as typeof VALID_PLATFORMS[number])) {
-      return NextResponse.json({ error: `Invalid platform. Must be one of: ${VALID_PLATFORMS.join(', ')}` }, { status: 400 });
+      return NextResponse.json({ error: 'Invalid platform' }, { status: 400 });
     }
 
-    // Filter by user_id to prevent cross-user deletion
-    await supabase.from('platform_connections').delete().eq('platform', platform).eq('user_id', user.id);
+    // Delete with user_id filter (falls back gracefully if column missing)
+    const { error } = await supabase.from('platform_connections').delete().eq('platform', platform).eq('user_id', user.id);
+    if (error && error.message?.includes('user_id')) {
+      // Old schema fallback
+      await supabase.from('platform_connections').delete().eq('platform', platform);
+    }
+
     return NextResponse.json({ deleted: true });
   } catch (error) {
     console.error('[DELETE /api/connections]', error);

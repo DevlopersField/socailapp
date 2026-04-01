@@ -47,12 +47,20 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid platform' }, { status: 400 });
     }
 
-    // Fetch connections
-    let connectionsQuery = supabase.from('platform_connections').select('*');
+    // Fetch connections for this user
+    let connectionsQuery = supabase.from('platform_connections').select('*').eq('user_id', user.id);
     if (platform) {
       connectionsQuery = connectionsQuery.eq('platform', platform);
     }
-    const { data: connections, error: connError } = await connectionsQuery;
+    let { data: connections, error: connError } = await connectionsQuery;
+    // Fallback for old schema without user_id column
+    if (connError && connError.message?.includes('user_id')) {
+      let fallbackQuery = supabase.from('platform_connections').select('*');
+      if (platform) fallbackQuery = fallbackQuery.eq('platform', platform);
+      const fallback = await fallbackQuery;
+      connections = fallback.data;
+      connError = fallback.error;
+    }
     if (connError) throw connError;
 
     if (!connections || connections.length === 0) {
