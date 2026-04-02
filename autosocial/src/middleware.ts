@@ -1,10 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getUserId } from './lib/auth-helpers';
 
 /**
- * Global middleware for security headers + CSRF protection on API mutations.
+ * Global middleware for security headers + CSRF protection + user context.
  */
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const response = NextResponse.next();
+
+  // ── Set user-id cookie for authenticated requests ──
+  const userId = await getUserId(request);
+  if (userId) {
+    response.cookies.set('user-id', userId, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+    });
+  }
 
   // ── Security Headers ──
   response.headers.set('X-Content-Type-Options', 'nosniff');

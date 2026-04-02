@@ -1,4 +1,18 @@
 {
+  "permissions": {
+    "allow": [
+      "Edit(/.claude/skills/web-artifacts/**)",
+      "Skill(progress)",
+      "Skill(progress:*)",
+      "Skill(frontend-design)",
+      "Skill(frontend-design:*)",
+      "Skill(documentation)",
+      "Skill(documentation:*)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\lucky\\.claude\\plans"
+    ]
+  },
   "hooks": {
     "Stop": [
       {
@@ -12,5 +26,7 @@
       }
     ]
   },
-  "skills": ["progress"]
+  "skills": [
+    "progress"
+  ]
 }

@@ -13,9 +13,19 @@ export function getAuthClient(request: NextRequest) {
   );
 }
 
-// Extract user ID from request
+// Extract user ID from request (from auth header or cookies)
 export async function getUserId(request: NextRequest): Promise<string | null> {
-  const client = getAuthClient(request);
-  const { data: { user } } = await client.auth.getUser();
-  return user?.id || null;
+  // Try to get from Authorization header first
+  const authHeader = request.headers.get('authorization');
+  if (authHeader?.startsWith('Bearer ')) {
+    const client = getAuthClient(request);
+    const { data: { user } } = await client.auth.getUser();
+    if (user?.id) return user.id;
+  }
+
+  // Fall back to user-id cookie set by middleware
+  const userId = request.cookies.get('user-id')?.value;
+  if (userId) return userId;
+
+  return null;
 }

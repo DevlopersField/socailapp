@@ -4,7 +4,8 @@
       "Bash(npm run:*)",
       "Skill(superpowers)",
       "Skill(superpowers:*)",
-      "Bash(npx next:*)"
+      "Bash(npx next:*)",
+      "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")"
     ]
   }
 }

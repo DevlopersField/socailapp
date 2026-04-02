@@ -2,7 +2,10 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { apiGet, apiPost, apiDelete } from '@/lib/api';
+import { OAuthCredentialsForm } from '@/components/oauth-credentials-form';
+import type { Platform } from '@/lib/database.types';
 
 // ─── Platform configs with inline setup guides ──────────
 
@@ -149,6 +152,11 @@ interface InternalStats {
   avgER: number;
 }
 
+interface OAuthCreds {
+  platform: Platform;
+  saved: boolean;
+}
+
 // ─── Component ──────────────────────────────────────────
 
 export default function ConnectPage() {
@@ -156,10 +164,12 @@ export default function ConnectPage() {
   const [connections, setConnections] = useState<Connection[]>([]);
   const [platformInsights, setPlatformInsights] = useState<PlatformInsight[]>([]);
   const [internalStats, setInternalStats] = useState<Record<string, InternalStats>>({});
+  const [oauthCreds, setOAuthCreds] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [expandedPlatform, setExpandedPlatform] = useState<string | null>(null);
   const [setupPlatform, setSetupPlatform] = useState<string | null>(null);
+  const [credentialsPlatform, setCredentialsPlatform] = useState<string | null>(null);
   const [setupStep, setSetupStep] = useState(0);
   const [tokenInput, setTokenInput] = useState('');
   const [accountNameInput, setAccountNameInput] = useState('');
@@ -192,6 +202,15 @@ export default function ConnectPage() {
       setConnections(data.connections || []);
       setPlatformInsights(data.platformInsights || []);
       setInternalStats(data.internalStats || {});
+
+      // Fetch OAuth credentials status
+      const credsRes = await apiGet('/api/oauth-credentials');
+      const credsData = await credsRes.json();
+      const savedCreds: Record<string, boolean> = {};
+      (credsData.credentials || []).forEach((cred: { platform: string }) => {
+        savedCreds[cred.platform] = true;
+      });
+      setOAuthCreds(savedCreds);
     } catch { /* silent */ } finally {
       setLoading(false);
       setRefreshing(false);
@@ -240,8 +259,15 @@ export default function ConnectPage() {
     } catch { /* silent */ }
   };
 
-  // Try OAuth first, fall back to guided setup
+  // Check if credentials are saved, show form if not, then proceed with OAuth
   const connectPlatform = async (platformId: string) => {
+    if (!oauthCreds[platformId]) {
+      // Show credentials form
+      setCredentialsPlatform(platformId);
+      return;
+    }
+
+    // Credentials are saved, proceed with OAuth
     try {
       const res = await apiPost(`/api/auth/${platformId}`, {});
       const data = await res.json();
@@ -398,10 +424,10 @@ export default function ConnectPage() {
                       </div>
                     )}
                     <div className="flex gap-2">
-                      <button onClick={() => setExpandedPlatform(isExpanded ? null : platform.id)}
-                        className="flex-1 py-2 bg-[#12131e] border border-[#2a2b3e] text-[#f1f5f9] text-xs rounded-lg hover:bg-[#2a2b3e] transition-colors">
-                        {isExpanded ? 'Hide Details' : 'Details'}
-                      </button>
+                      <Link href={`/connect/${platform.id}`}
+                        className="flex-1 py-2 bg-[#12131e] border border-[#2a2b3e] text-[#f1f5f9] text-xs rounded-lg hover:bg-[#2a2b3e] transition-colors text-center">
+                        View Details →
+                      </Link>
                       <button onClick={() => disconnectPlatform(platform.id)}
                         className="px-3 py-2 bg-red-500/10 text-red-400 text-xs rounded-lg hover:bg-red-500/20 transition-colors">
                         Disconnect
@@ -477,19 +503,50 @@ export default function ConnectPage() {
                 )}
 
                 {/* ═══ NOT CONNECTED ═══ */}
-                {!isConnected && !isSettingUp && (
+                {!isConnected && !isSettingUp && credentialsPlatform !== platform.id && (
                   <div className="space-y-3">
                     <div className="flex flex-wrap gap-1.5">
                       {platform.features.map(f => (
                         <span key={f} className="text-[10px] px-2 py-0.5 bg-[#12131e] text-[#94a3b8] rounded-md">{f}</span>
                       ))}
                     </div>
+                    <Link
+                      href={`/connect/${platform.id}`}
+                      className="block text-center py-2 px-3 bg-[#12131e] border border-[#2a2b3e] text-[#6366f1] text-xs rounded-lg hover:bg-[#2a2b3e] transition-colors mb-2 font-medium"
+                    >
+                      View Details →
+                    </Link>
+                    {!oauthCreds[platform.id] && (
+                      <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg mb-2">
+                        <p className="text-xs text-amber-300 mb-2">💡 Add your {platform.name} app credentials first</p>
+                        <button onClick={() => setCredentialsPlatform(platform.id)}
+                          className="w-full py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-xs font-medium rounded-lg transition-colors">
+                          Add {platform.name} Credentials
+                        </button>
+                      </div>
+                    )}
                     <button onClick={() => connectPlatform(platform.id)}
-                      className="w-full py-2.5 text-white text-sm font-medium rounded-lg transition-all flex items-center justify-center gap-2 hover:opacity-90"
+                      disabled={!oauthCreds[platform.id]}
+                      className="w-full py-2.5 text-white text-sm font-medium rounded-lg transition-all flex items-center justify-center gap-2 hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                       style={{ backgroundColor: platform.color }}>
                       <span>{platform.icon}</span>
                       Connect {platform.name}
                     </button>
+                  </div>
+                )}
+
+                {/* ═══ CREDENTIALS FORM ═══ */}
+                {credentialsPlatform === platform.id && !isConnected && !isSettingUp && (
+                  <div className="space-y-3 -mx-5 -mb-5 p-5" style={{ backgroundColor: `${platform.color}08` }}>
+                    <OAuthCredentialsForm
+                      platform={platform.id as Platform}
+                      onSuccess={() => {
+                        setCredentialsPlatform(null);
+                        showToast('success', `${platform.name} credentials saved! Ready to connect.`);
+                        fetchData(); // Refresh OAuth creds
+                      }}
+                      onCancel={() => setCredentialsPlatform(null)}
+                    />
                   </div>
                 )}
               </div>

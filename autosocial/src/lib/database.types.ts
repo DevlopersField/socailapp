@@ -1,4 +1,4 @@
-export type Platform = 'instagram' | 'linkedin' | 'twitter' | 'pinterest' | 'dribbble' | 'gmb';
+export type Platform = 'instagram' | 'linkedin' | 'twitter' | 'pinterest' | 'dribbble' | 'gmb' | 'reddit';
 export type ContentType = 'case-study' | 'knowledge' | 'design' | 'trend' | 'promotion';
 export type PostStatus = 'draft' | 'scheduled' | 'published' | 'failed';
 
@@ -8,6 +8,7 @@ export interface Database {
       posts: {
         Row: {
           id: string;
+          user_id: string;
           title: string;
           platforms: Platform[];
           scheduled_at: string;
@@ -18,12 +19,13 @@ export interface Database {
           created_at: string;
           updated_at: string;
         };
-        Insert: Omit<Database['public']['Tables']['posts']['Row'], 'id' | 'created_at' | 'updated_at'>;
+        Insert: Omit<Database['public']['Tables']['posts']['Row'], 'id' | 'created_at' | 'updated_at' | 'user_id'>;
         Update: Partial<Database['public']['Tables']['posts']['Insert']>;
       };
       analytics: {
         Row: {
           id: string;
+          user_id: string;
           post_id: string;
           platform: Platform;
           published_at: string;
@@ -41,12 +43,13 @@ export interface Database {
           hashtags: string[];
           created_at: string;
         };
-        Insert: Omit<Database['public']['Tables']['analytics']['Row'], 'id' | 'created_at'>;
+        Insert: Omit<Database['public']['Tables']['analytics']['Row'], 'id' | 'created_at' | 'user_id'>;
         Update: Partial<Database['public']['Tables']['analytics']['Insert']>;
       };
       platform_connections: {
         Row: {
           id: string;
+          user_id: string;
           platform: Platform;
           access_token: string;
           refresh_token: string | null;
@@ -56,8 +59,21 @@ export interface Database {
           connected_at: string;
           status: 'connected' | 'expired' | 'disconnected';
         };
-        Insert: Omit<Database['public']['Tables']['platform_connections']['Row'], 'id' | 'connected_at'>;
+        Insert: Omit<Database['public']['Tables']['platform_connections']['Row'], 'id' | 'connected_at' | 'user_id'>;
         Update: Partial<Database['public']['Tables']['platform_connections']['Insert']>;
+      };
+      oauth_credentials: {
+        Row: {
+          id: string;
+          user_id: string;
+          platform: Platform;
+          client_id: string;
+          client_secret: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: Omit<Database['public']['Tables']['oauth_credentials']['Row'], 'id' | 'created_at' | 'updated_at' | 'user_id'>;
+        Update: Partial<Database['public']['Tables']['oauth_credentials']['Insert']>;
       };
       trends: {
         Row: {
@@ -76,6 +92,7 @@ export interface Database {
       scheduled_jobs: {
         Row: {
           id: string;
+          user_id: string;
           post_id: string;
           platform: Platform;
           scheduled_at: string;
@@ -84,7 +101,7 @@ export interface Database {
           created_at: string;
           processed_at: string | null;
         };
-        Insert: Omit<Database['public']['Tables']['scheduled_jobs']['Row'], 'id' | 'created_at'>;
+        Insert: Omit<Database['public']['Tables']['scheduled_jobs']['Row'], 'id' | 'created_at' | 'user_id'>;
         Update: Partial<Database['public']['Tables']['scheduled_jobs']['Insert']>;
       };
     };

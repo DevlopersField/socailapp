@@ -34,11 +34,12 @@ export const OAUTH_PROVIDERS: Record<string, OAuthProvider> = {
     name: 'Instagram',
     icon: '📸',
     color: '#E4405F',
-    // Instagram uses Facebook OAuth
+    // Instagram uses Facebook OAuth for Business accounts
     authUrl: 'https://www.facebook.com/v21.0/dialog/oauth',
     tokenUrl: 'https://graph.facebook.com/v21.0/oauth/access_token',
     scopes: ['instagram_basic', 'instagram_content_publish', 'pages_show_list', 'pages_read_engagement'],
-    profileUrl: 'https://graph.instagram.com/v21.0/me?fields=id,username,media_count',
+    // For Business accounts, we fetch the linked Pages to find the IG Business ID
+    profileUrl: 'https://graph.facebook.com/v21.0/me/accounts?fields=name,instagram_business_account{id,username,profile_picture_url}',
     setupGuide: 'Create a Facebook App → Add Instagram Graph API product → Add your redirect URI',
     setupUrl: 'https://developers.facebook.com/apps/',
   },

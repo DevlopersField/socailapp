@@ -78,12 +78,20 @@ export async function GET(request: NextRequest) {
       const totalImp = entries.reduce((s, e) => s + (e.metrics?.impressions || 0), 0);
       const totalR = entries.reduce((s, e) => s + (e.metrics?.reach || 0), 0);
       const totalL = entries.reduce((s, e) => s + (e.metrics?.likes || 0), 0);
+      const totalC = entries.reduce((s, e) => s + (e.metrics?.comments || 0), 0);
+      const totalSh = entries.reduce((s, e) => s + (e.metrics?.shares || 0), 0);
+      const totalSa = entries.reduce((s, e) => s + (e.metrics?.saves || 0), 0);
+      const totalCl = entries.reduce((s, e) => s + (e.metrics?.clicks || 0), 0);
       return {
         platform: p,
         posts: entries.length,
         impressions: totalImp,
         reach: totalR,
         likes: totalL,
+        comments: totalC,
+        shares: totalSh,
+        saves: totalSa,
+        clicks: totalCl,
         avgEngagementRate: Math.round(avgEngagement * 100) / 100,
       };
     }).sort((a, b) => b.avgEngagementRate - a.avgEngagementRate);
@@ -174,6 +182,39 @@ export async function GET(request: NextRequest) {
       .map(([d, { count, totalER }]) => ({ day: dayNames[parseInt(d)], posts: count, avgER: Math.round((totalER / count) * 100) / 100 }))
       .sort((a, b) => b.avgER - a.avgER);
 
+    // Daily time-series data for charting
+    const dailyMap: Record<string, { posts: number; impressions: number; reach: number; likes: number; comments: number; shares: number; saves: number; clicks: number; totalER: number }> = {};
+    data.forEach(e => {
+      const dateStr = e.published_at ? e.published_at.split('T')[0] : new Date().toISOString().split('T')[0];
+      if (!dailyMap[dateStr]) {
+        dailyMap[dateStr] = { posts: 0, impressions: 0, reach: 0, likes: 0, comments: 0, shares: 0, saves: 0, clicks: 0, totalER: 0 };
+      }
+      dailyMap[dateStr].posts += 1;
+      dailyMap[dateStr].impressions += e.metrics?.impressions || 0;
+      dailyMap[dateStr].reach += e.metrics?.reach || 0;
+      dailyMap[dateStr].likes += e.metrics?.likes || 0;
+      dailyMap[dateStr].comments += e.metrics?.comments || 0;
+      dailyMap[dateStr].shares += e.metrics?.shares || 0;
+      dailyMap[dateStr].saves += e.metrics?.saves || 0;
+      dailyMap[dateStr].clicks += e.metrics?.clicks || 0;
+      dailyMap[dateStr].totalER += e.metrics?.engagement_rate || 0;
+    });
+
+    const dailySeries = Object.entries(dailyMap)
+      .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
+      .map(([date, metrics]) => ({
+        date,
+        posts: metrics.posts,
+        impressions: metrics.impressions,
+        reach: metrics.reach,
+        likes: metrics.likes,
+        comments: metrics.comments,
+        shares: metrics.shares,
+        saves: metrics.saves,
+        clicks: metrics.clicks,
+        avgEngagementRate: metrics.posts ? Math.round((metrics.totalER / metrics.posts) * 100) / 100 : 0,
+      }));
+
     return NextResponse.json({
       summary: {
         totalPosts: data.length,
@@ -193,6 +234,7 @@ export async function GET(request: NextRequest) {
       topHashtags,
       bestHours,
       bestDays,
+      dailySeries,
       range,
       platform,
     });

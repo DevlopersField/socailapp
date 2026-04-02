@@ -1,5 +1,28 @@
 # Progress Log
 
+## 2026-04-02
+
+### 09:15 — Full Instagram Analytics Dashboard with Real Charts
+- Enhanced `/api/insights/route.ts` — added `dailySeries` time-series data (daily aggregation) + expanded `platformBreakdown` with 8 full metrics (impressions, reach, likes, comments, shares, saves, clicks, avg ER)
+- Redesigned `/insights` Performance tab with:
+  * **Platform filter pills**: All | Instagram | LinkedIn | Pinterest | Twitter | Dribbble (click to re-fetch platform-specific data)
+  * **Platform Overview card**: Shows when single platform selected (platform icon + name + 8 KPI stat cards + audience trend line chart)
+  * **3 Pure SVG charts** (zero deps): LineChart (impressions + reach over time), BarChart (best days/hours), responsive grids
+  * **8 KPI cards**: Impressions, Reach, Likes, Comments, Shares, Saves, Clicks, Avg ER
+  * **Top Hashtags**: Sorted by average ER with count badges
+  * **Best Days & Hours**: Bar charts showing optimal posting times
+- Key files: `src/app/api/insights/route.ts`, `src/app/insights/page.tsx` (complete rewrite with chart components)
+
+### 08:45 — Tabbed Platform Detail Page + Connected Navigation
+- Redesign `/connect/[platform]` with premium two-tab UI: "📊 Overview & Analytics" | "🚀 Setup Guide"
+- Smart auto-selection: connected users land on Analytics tab (5 stat cards + recent posts grid), unconnected land on Guide tab
+- Create `/api/connect/[platform]/posts` endpoint — fetches user's posts from analytics table with aggregated stats
+- Add green success banner in Guide tab for connected users ("✅ Connected. View Analytics →")
+- Add centered CTA in Analytics tab for unconnected users ("Connect to see analytics")
+- Unify button labels on `/connect/page.tsx`: both connected and unconnected cards now say "View Details →"
+- Create interactive mockup at `.claude/skills/web-artifacts/autosocial-platform-detail.html` for preview
+- Key files: `src/app/connect/[platform]/page.tsx`, `src/app/connect/page.tsx`, `src/app/api/connect/[platform]/posts/route.ts`
+
 ## 2026-04-01
 
 ### OAuth Login Flow — One-Click Platform Connection

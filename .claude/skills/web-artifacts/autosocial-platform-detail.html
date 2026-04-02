@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoSocial - Platform Detail (Tabbed)</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0a0b14;
+            color: #f1f5f9;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* ════════ HEADER ════════ */
+        .header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .header-content {
+            display: flex;
+            align-items: flex-start;
+            gap: 1.5rem;
+        }
+
+        .platform-icon {
+            width: 4rem;
+            height: 4rem;
+            border-radius: 1rem;
+            background: rgba(228, 64, 95, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            flex-shrink: 0;
+        }
+
+        .header-text h1 {
+            font-size: 1.875rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .header-text p {
+            color: #94a3b8;
+            font-size: 0.875rem;
+            margin-bottom: 1rem;
+        }
+
+        .badges {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-weight: 500;
+        }
+
+        .badge-oauth {
+            background: rgba(228, 64, 95, 0.2);
+            color: #e4405f;
+        }
+
+        .badge-time {
+            color: #64748b;
+            font-size: 0.75rem;
+        }
+
+        .badge-difficulty {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+        }
+
+        .back-btn {
+            padding: 0.5rem 1rem;
+            background: #1a1b2e;
+            border: 1px solid #2a2b3e;
+            color: #f1f5f9;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .back-btn:hover {
+            background: #2a2b3e;
+        }
+
+        /* ════════ TAB BAR ════════ */
+        .tab-bar {
+            display: flex;
+            gap: 0.25rem;
+            background: #12131e;
+            border: 1px solid #2a2b3e;
+            border-radius: 0.5rem;
+            padding: 0.25rem;
+            width: fit-content;
+            margin-bottom: 2rem;
+        }
+
+        .tab-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            border: none;
+            background: transparent;
+            color: #94a3b8;
+            cursor: pointer;
+            border-radius: 0.375rem;
+            transition: all 0.2s;
+        }
+
+        .tab-btn:hover {
+            color: #f1f5f9;
+        }
+
+        .tab-btn.active {
+            background: #6366f1;
+            color: white;
+        }
+
+        /* ════════ TAB CONTENT ════════ */
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.2s ease-in;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ════════ ANALYTICS TAB ════════ */
+        .analytics-content {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 0.75rem;
+        }
+
+        .stat-card {
+            background: #1a1b2e;
+            border: 1px solid #2a2b3e;
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 0.625rem;
+            text-transform: uppercase;
+            color: #94a3b8;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-value {
+            font-size: 1.125rem;
+            font-weight: 700;
+            color: #f1f5f9;
+        }
+
+        .stat-value.highlight {
+            color: #22c55e;
+        }
+
+        .posts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .post-card {
+            background: #12131e;
+            border: 1px solid #2a2b3e;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            transition: all 0.2s;
+        }
+
+        .post-card:hover {
+            border-color: rgba(99, 102, 241, 0.5);
+        }
+
+        .post-image {
+            width: 100%;
+            height: 8rem;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(139, 92, 246, 0.1) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+        }
+
+        .post-content {
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .post-title {
+            font-weight: 600;
+            font-size: 0.875rem;
+            color: #f1f5f9;
+        }
+
+        .post-date {
+            font-size: 0.75rem;
+            color: #64748b;
+        }
+
+        .post-metrics {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid #2a2b3e;
+        }
+
+        .metric-badge {
+            background: #1a1b2e;
+            border-radius: 0.25rem;
+            padding: 0.5rem;
+            text-align: center;
+        }
+
+        .metric-label {
+            font-size: 0.625rem;
+            text-transform: uppercase;
+            color: #64748b;
+        }
+
+        .metric-value {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #f1f5f9;
+            margin-top: 0.25rem;
+        }
+
+        .metric-value.highlight {
+            color: #22c55e;
+        }
+
+        /* ════════ GUIDE TAB ════════ */
+        .guide-content {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .success-banner {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.2);
+            border-radius: 0.75rem;
+            padding: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+        }
+
+        .success-banner-text {
+            color: #22c55e;
+            font-size: 0.875rem;
+        }
+
+        .success-btn {
+            padding: 0.5rem 1rem;
+            background: rgba(34, 197, 94, 0.2);
+            border: none;
+            color: #22c55e;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 0.75rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .success-btn:hover {
+            background: rgba(34, 197, 94, 0.3);
+        }
+
+        .guide-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 1.5rem;
+        }
+
+        .guide-section {
+            background: #1a1b2e;
+            border: 1px solid #2a2b3e;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+        }
+
+        .section-title {
+            font-size: 1.125rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        .features-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 0.875rem;
+            color: #f1f5f9;
+        }
+
+        .feature-dot {
+            width: 0.5rem;
+            height: 0.5rem;
+            border-radius: 50%;
+            background: #6366f1;
+            flex-shrink: 0;
+        }
+
+        .setup-steps {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .step {
+            border-left: 2px solid #6366f1;
+            padding-left: 1rem;
+        }
+
+        .step-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .step-number {
+            width: 2rem;
+            height: 2rem;
+            border-radius: 50%;
+            background: #6366f1;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.875rem;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .step-title {
+            font-weight: 600;
+            color: #f1f5f9;
+        }
+
+        .step-desc {
+            font-size: 0.875rem;
+            color: #94a3b8;
+            margin-bottom: 0.5rem;
+        }
+
+        .tips-section {
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.2);
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+        }
+
+        .tips-title {
+            color: #fcd34d;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .tips-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .tip-item {
+            font-size: 0.875rem;
+            color: #fef3c7;
+        }
+
+        .sidebar-section {
+            background: #1a1b2e;
+            border: 1px solid #2a2b3e;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+        }
+
+        .sidebar-title {
+            font-weight: 700;
+            margin-bottom: 1rem;
+            font-size: 0.95rem;
+        }
+
+        .sidebar-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .sidebar-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            color: #94a3b8;
+        }
+
+        .sidebar-item-icon {
+            color: #6366f1;
+            margin-top: 0.125rem;
+        }
+
+        .sidebar-item-limit {
+            color: #fbbf24;
+        }
+
+        .button-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .button {
+            padding: 0.75rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: block;
+        }
+
+        .button-primary {
+            background: #6366f1;
+            color: white;
+        }
+
+        .button-primary:hover {
+            background: #4f46e5;
+        }
+
+        .button-secondary {
+            background: #1a1b2e;
+            border: 1px solid #2a2b3e;
+            color: #f1f5f9;
+        }
+
+        .button-secondary:hover {
+            background: #2a2b3e;
+        }
+
+        .button-success {
+            background: rgba(34, 197, 94, 0.2);
+            color: #22c55e;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .button-success:hover {
+            background: rgba(34, 197, 94, 0.3);
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+            }
+
+            .guide-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-content">
+                <div class="platform-icon">📸</div>
+                <div class="header-text">
+                    <h1>Instagram</h1>
+                    <p>Connect your Instagram Business Account to schedule posts, view insights, and manage content from AutoSocial.</p>
+                    <div class="badges">
+                        <span class="badge badge-oauth">OAuth 2.0</span>
+                        <span class="badge badge-time">⏱ 10-15 min</span>
+                        <span class="badge badge-difficulty">Advanced</span>
+                    </div>
+                </div>
+            </div>
+            <button class="back-btn">← Back</button>
+        </div>
+
+        <!-- Tab Bar -->
+        <div class="tab-bar">
+            <button class="tab-btn active" onclick="switchTab('analytics')">
+                <span>📊</span> Overview & Analytics
+            </button>
+            <button class="tab-btn" onclick="switchTab('guide')">
+                <span>🚀</span> Setup Guide
+            </button>
+        </div>
+
+        <!-- Analytics Tab -->
+        <div id="analytics" class="tab-content active">
+            <div class="analytics-content">
+                <!-- Stats Grid -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">Posts</div>
+                        <div class="stat-value">12</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Impressions</div>
+                        <div class="stat-value">15.2K</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Reach</div>
+                        <div class="stat-value">12.1K</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Likes</div>
+                        <div class="stat-value">1,582</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Avg ER</div>
+                        <div class="stat-value highlight">4.2%</div>
+                    </div>
+                </div>
+
+                <!-- Recent Posts -->
+                <div>
+                    <h2 class="section-title">Recent Posts</h2>
+                    <div class="posts-grid">
+                        <div class="post-card">
+                            <div class="post-image">🎨</div>
+                            <div class="post-content">
+                                <div class="post-title">Design Insights Post</div>
+                                <div class="post-date">Mar 28, 2026</div>
+                                <div class="post-metrics">
+                                    <div class="metric-badge">
+                                        <div class="metric-label">Impressions</div>
+                                        <div class="metric-value">3.2K</div>
+                                    </div>
+                                    <div class="metric-badge">
+                                        <div class="metric-label">Reach</div>
+                                        <div class="metric-value">2.8K</div>
+                                    </div>
+                                    <div class="metric-badge">
+                                        <div class="metric-label">Likes</div>
+                                        <div class="metric-value highlight">285</div>
+                                    </div>
+                                    <div class="metric-badge">
+                                        <div class="metric-label">ER</div>
+                                        <div class="metric-value highlight">5.2%</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="post-card">
+                            <div class="post-image">💡</div>
+                            <div class="post-content">
+                                <div class="post-title">AI Strategy Breakdown</div>
+                                <div class="post-date">Mar 25, 2026</div>
+                                <div class="post-metrics">
+                                    <div class="metric-badge">
+                                        <div class="metric-label">Impressions</div>
+                                        <div class="metric-value">2.8K</div>
+                                    </div>
+                                    <div class="metric-badge">
+                                        <div class="metric-label">Reach</div>
+                                        <div class="metric-value">2.2K</div>
+                                    </div>
+                                    <div class="metric-badge">
+                                        <div class="metric-label">Likes</div>
+                                        <div class="metric-value highlight">198</div>
+                                    </div>
+                                    <div class="metric-badge">
+                                        <div class="metric-label">ER</div>
+                                        <div class="metric-value highlight">3.8%</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="post-card">
+                            <div class="post-image">📱</div>
+                            <div class="post-content">
+                                <div class="post-title">Mobile Design Tips</div>
+                                <div class="post-date">Mar 22, 2026</div>
+                                <div class="post-metrics">
+                                    <div class="metric-badge">
+                                        <div class="metric-label">Impressions</div>
+                                        <div class="metric-value">4.1K</div>
+                                    </div>
+                                    <div class="metric-badge">
+                                        <div class="metric-label">Reach</div>
+                                        <div class="metric-value">3.5K</div>
+                                    </div>
+                                    <div class="metric-badge">
+                                        <div class="metric-label">Likes</div>
+                                        <div class="metric-value highlight">412</div>
+                                    </div>
+                                    <div class="metric-badge">
+                                        <div class="metric-label">ER</div>
+                                        <div class="metric-value highlight">5.8%</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Guide Tab -->
+        <div id="guide" class="tab-content">
+            <div class="guide-content">
+                <!-- Success Banner -->
+                <div class="success-banner">
+                    <span class="success-banner-text">✅ <strong>Instagram</strong> is connected. Switch to the Analytics tab to view your data.</span>
+                    <button class="success-btn" onclick="switchTab('analytics')">View Analytics →</button>
+                </div>
+
+                <div class="guide-grid">
+                    <!-- Main Content -->
+                    <div>
+                        <!-- Features -->
+                        <div class="guide-section">
+                            <h2 class="section-title">✨ Features</h2>
+                            <div class="features-list">
+                                <div class="feature-item">
+                                    <span class="feature-dot"></span>
+                                    Schedule photos and reels
+                                </div>
+                                <div class="feature-item">
+                                    <span class="feature-dot"></span>
+                                    60-day auto-refreshing tokens
+                                </div>
+                                <div class="feature-item">
+                                    <span class="feature-dot"></span>
+                                    Real-time insights & analytics
+                                </div>
+                                <div class="feature-item">
+                                    <span class="feature-dot"></span>
+                                    Hashtag research & suggestions
+                                </div>
+                                <div class="feature-item">
+                                    <span class="feature-dot"></span>
+                                    Multi-account management
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Setup Steps -->
+                        <div class="guide-section" style="margin-top: 1.5rem;">
+                            <h2 class="section-title">🚀 Setup Guide</h2>
+                            <div class="setup-steps">
+                                <div class="step">
+                                    <div class="step-header">
+                                        <span class="step-number">1</span>
+                                        <span class="step-title">Create Facebook App</span>
+                                    </div>
+                                    <div class="step-desc">Go to Facebook Developers and create a new Business app</div>
+                                </div>
+                                <div class="step">
+                                    <div class="step-header">
+                                        <span class="step-number">2</span>
+                                        <span class="step-title">Add Instagram Graph API</span>
+                                    </div>
+                                    <div class="step-desc">Enable Instagram Graph API in your app</div>
+                                </div>
+                                <div class="step">
+                                    <div class="step-header">
+                                        <span class="step-number">3</span>
+                                        <span class="step-title">Configure Callback URL</span>
+                                    </div>
+                                    <div class="step-desc">Set up OAuth callback for AutoSocial</div>
+                                </div>
+                                <div class="step">
+                                    <div class="step-header">
+                                        <span class="step-number">4</span>
+                                        <span class="step-title">Save Credentials</span>
+                                    </div>
+                                    <div class="step-desc">Add credentials to AutoSocial</div>
+                                </div>
+                                <div class="step">
+                                    <div class="step-header">
+                                        <span class="step-number">5</span>
+                                        <span class="step-title">Connect Account</span>
+                                    </div>
+                                    <div class="step-desc">Authorize your Instagram Business Account</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tips -->
+                        <div class="tips-section" style="margin-top: 1.5rem;">
+                            <div class="tips-title">💡 Pro Tips</div>
+                            <div class="tips-list">
+                                <div class="tip-item">💡 Your app needs to be in "Live" mode to work with real accounts</div>
+                                <div class="tip-item">💡 Make sure your Instagram account is a Business Account, not Personal</div>
+                                <div class="tip-item">💡 Tokens auto-refresh for 60 days. No manual refresh needed!</div>
+                                <div class="tip-item">💡 You can connect multiple Instagram accounts (one app per account)</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sidebar -->
+                    <div>
+                        <!-- Requirements -->
+                        <div class="sidebar-section">
+                            <h3 class="sidebar-title">📋 Requirements</h3>
+                            <div class="sidebar-list">
+                                <div class="sidebar-item">
+                                    <span class="sidebar-item-icon">✓</span>
+                                    <span>Instagram Business Account (linked to Facebook Page)</span>
+                                </div>
+                                <div class="sidebar-item">
+                                    <span class="sidebar-item-icon">✓</span>
+                                    <span>Facebook App created in Meta Business</span>
+                                </div>
+                                <div class="sidebar-item">
+                                    <span class="sidebar-item-icon">✓</span>
+                                    <span>Instagram Graph API access</span>
+                                </div>
+                                <div class="sidebar-item">
+                                    <span class="sidebar-item-icon">✓</span>
+                                    <span>Admin or Editor role on connected page</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Limitations -->
+                        <div class="sidebar-section" style="margin-top: 1.5rem;">
+                            <h3 class="sidebar-title">⚠️ Limitations</h3>
+                            <div class="sidebar-list">
+                                <div class="sidebar-item">
+                                    <span class="sidebar-item-icon sidebar-item-limit">•</span>
+                                    <span>Cannot schedule Stories via API</span>
+                                </div>
+                                <div class="sidebar-item">
+                                    <span class="sidebar-item-icon sidebar-item-limit">•</span>
+                                    <span>Token auto-refreshes every 60 days</span>
+                                </div>
+                                <div class="sidebar-item">
+                                    <span class="sidebar-item-icon sidebar-item-limit">•</span>
+                                    <span>Insights data delayed by ~24 hours</span>
+                                </div>
+                                <div class="sidebar-item">
+                                    <span class="sidebar-item-icon sidebar-item-limit">•</span>
+                                    <span>API limits: 200 calls/user/hour</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Documentation -->
+                        <div class="button-group" style="margin-top: 1.5rem;">
+                            <button class="button button-primary">📚 Read Official Docs</button>
+                            <button class="button button-secondary">🔗 API Reference</button>
+                            <button class="button button-success">→ Go to Connect</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function switchTab(tabName) {
+            // Hide all tabs
+            document.getElementById('analytics').classList.remove('active');
+            document.getElementById('guide').classList.remove('active');
+
+            // Remove active from all buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // Show selected tab
+            document.getElementById(tabName).classList.add('active');
+
+            // Add active to clicked button
+            event.target.closest('.tab-btn').classList.add('active');
+        }
+    </script>
+</body>
+</html>

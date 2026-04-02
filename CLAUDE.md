@@ -12,11 +12,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **App Dir:** `autosocial/`
 - **Run:** `cd autosocial && npm run dev`
 - **Auth:** Supabase Auth (email/password), per-user data isolation via RLS
-- **Database:** Supabase PostgreSQL (5 tables with RLS policies)
+- **Database:** Supabase PostgreSQL (7 tables with RLS policies)
+- **Multi-Tenant:** Each user manages their own OAuth app credentials (per-user Instagram/LinkedIn/etc apps)
 - **AI:** OpenRouter (Nemotron free) / OpenAI / Anthropic — switchable via .env.local
 - **Image Processing:** Sharp (parallel resize, contain/cover/stretch)
 - **Automation:** Upload image → AI generates → auto-schedule → package (one click)
-- **Platforms:** Instagram, LinkedIn, Twitter/X, Pinterest, Dribbble, Google My Business
+- **Platforms:** Instagram (per-user OAuth), LinkedIn (per-user OAuth), Twitter/X, Pinterest, Dribbble, GMB — each user brings their own app credentials
 
 ## Custom Agents
 
